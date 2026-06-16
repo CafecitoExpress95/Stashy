@@ -1,0 +1,165 @@
+set shell := ["powershell.exe", "-NoLogo", "-Command"]
+
+default:
+    just --list
+
+# =========================================================
+# DEV
+# =========================================================
+
+dev:
+    npm run dev
+
+preview:
+    npm run preview
+
+tauri-dev:
+    .\scripts\tauri-dev.cmd
+
+code:
+    code .
+
+dev-open:
+    Start-Process "http://localhost:5173"
+    npm run dev
+
+# =========================================================
+# PACKAGE MANAGEMENT
+# =========================================================
+
+install package="" flags="":
+    if ("{{package}}" -eq "") { npm install {{flags}} } else { npm install {{package}} {{flags}} }
+
+add package:
+    npm install {{package}}
+
+add-dev package:
+    npm install -D {{package}}
+
+remove package:
+    npm uninstall {{package}}
+
+update:
+    npm update
+
+fresh:
+    Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
+    Remove-Item -Force package-lock.json -ErrorAction SilentlyContinue
+    npm install
+
+# =========================================================
+# CLEAN / RESET
+# =========================================================
+
+clean:
+    Remove-Item -Recurse -Force node_modules, .svelte-kit, build, docs -ErrorAction SilentlyContinue
+
+reset: clean
+    npm install
+
+rebuild:
+    Remove-Item -Recurse -Force .svelte-kit -ErrorAction SilentlyContinue
+    npm run build
+    New-Item -ItemType File -Force docs/.nojekyll | Out-Null
+
+# =========================================================
+# BUILD / DEPLOY
+# =========================================================
+
+build:
+    npm run build
+    New-Item -ItemType File -Force docs/.nojekyll | Out-Null
+
+deploy: build
+    git add docs; git diff --cached --quiet; if ($LASTEXITCODE -eq 0) { Write-Host "No docs changes to deploy."; exit 0 }; git commit -m "Build for deployment"; git push
+
+# =========================================================
+# DAILY GIT
+# =========================================================
+
+status:
+    git status
+
+pull:
+    git pull
+
+push:
+    git push -u origin HEAD
+
+save msg:
+    git add .
+    git commit -m "{{msg}}"
+    git push -u origin HEAD
+
+checkpoint:
+    git add .
+    git commit -m "Checkpoint"
+    git push -u origin HEAD
+
+# Backward compatibility
+gac msg:
+    just save "{{msg}}"
+
+undo-last:
+    git reset --soft HEAD~1
+
+undo-hard:
+    git reset --hard HEAD~1
+
+# =========================================================
+# FEATURE FLOW
+# =========================================================
+
+start name:
+    git checkout main
+    git pull origin main
+    git checkout -b feature/{{name}}
+
+finish:
+    $branch = git branch --show-current; if ($branch -eq "main") { Write-Error "Already on main."; exit 1 }; git checkout main; git pull origin main; git merge $branch; git push origin main; git branch -d $branch
+
+sync:
+    git fetch origin
+    git merge origin/main
+
+rebase:
+    git fetch origin
+    git rebase origin/main
+
+branches:
+    git branch
+
+delete-branch name:
+    git branch -d {{name}}
+
+# =========================================================
+# UTILITIES
+# =========================================================
+
+list:
+    just --list
+
+pwd:
+    Get-Location
+
+open:
+    explorer .
+
+serve-docs:
+    npx serve docs
+
+kill-node:
+    Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
+
+# =========================================================
+# PROJECT SHORTCUTS
+# =========================================================
+
+packy:
+    code .\packy
+
+localdeck:
+    code .\localdeck
+
+prefy:
+    code .\prefy
