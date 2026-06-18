@@ -1,67 +1,23 @@
-# Dependencies
-node_modules/
-.pnpm-store/
+node_modules
 
-# Build output and generated app state
-build/
-dist/
-.svelte-kit/
-coverage/
-*.tsbuildinfo
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
 
-# Tauri / Rust build output
-src-tauri/target/
-target/
+# OS
+.DS_Store
+Thumbs.db
 
-# Logs and local caches
-*.log
-npm-debug.log*
-yarn-debug.log*
-pnpm-debug.log*
-.cache/
-.tmp/
-tmp/
-
-# Environment and secrets
+# Env
 .env
 .env.*
 !.env.example
-!.env.sample
+!.env.test
 
-# Local finance data and exports
-data/
-exports/
-backups/
-*.db
-*.sqlite
-*.sqlite3
-*.db-shm
-*.db-wal
-
-# Private source material currently used for design reference
-docs/img/sheets_example.png
-
-# AI assistant workspace, scratch, and private planning material
-.codex/
-.agents/
-.claude/
-.aider*
-.continue/
-.ai/
-ai-notes/
-agent-notes/
-scratch/
-*.ai.md
-*.codex.md
-PRIVATE*.md
-*.private.md
-
-# Editor and OS noise
-.DS_Store
-Thumbs.db
-desktop.ini
-.vscode/
-.idea/
-
-# Other
-QUESTIONS.md
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
