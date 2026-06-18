@@ -81,20 +81,20 @@ status:
     git status
 
 pull:
-    git pull
+    git pull --rebase
 
 push:
-    git push -u origin HEAD
+    $branch = git branch --show-current; git fetch origin; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; git show-ref --verify --quiet "refs/remotes/origin/$branch"; if ($LASTEXITCODE -eq 0) { git rebase "origin/$branch"; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }; git push -u origin HEAD
 
 save msg:
     git add .
     git commit -m "{{msg}}"
-    git push -u origin HEAD
+    just push
 
 checkpoint:
     git add .
     git commit -m "Checkpoint"
-    git push -u origin HEAD
+    just push
 
 # Backward compatibility
 gac msg:
