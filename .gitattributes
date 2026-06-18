@@ -1,0 +1,5 @@
+* text=auto
+
+.gitattributes text eol=lf
+*.md text eol=lf
+justfile text eol=lf
