@@ -1,6 +1,7 @@
 # Stashy
 
 ## Table of Contents
+
 - [Stashy](#stashy)
   - [Table of Contents](#table-of-contents)
   - [Application Overview](#application-overview)
@@ -14,7 +15,7 @@
     - [Configuration](#configuration)
   - [Data Model](#data-model)
     - [Anthony's Notes](#anthonys-notes)
- 
+
 ## Application Overview
 
 Stashy is a simple, local-first, privacy-focused app for tracking your sit-down sessions where you pay your credit cards/accounts.
@@ -60,7 +61,7 @@ For MS-01, Stashy is not trying to be:
 Some of those ideas may become useful later. For now, we should not piss up over our heads.
 
 ## User Workflow
- 
+
 The main screen should be simple and have the following breakdowns:
 
 - Sessions
@@ -81,6 +82,7 @@ Here is an example of a real "sit-down" from my current Google Sheet method. I w
 ![Example of a "sit-down" from Anthony's Google Sheets](./img/sheets_example.png)
 
 The real workflow I follow today goes as follows:
+
 1. Update asset accounts at the top for the "Opening" row
 2. For the liability accounts, update their "Starting Balance" column
 3. Put in what I am going to pay for each liability account, lining up under the corresponding asset account I will pay from (the columns add then live subtract from the "Opening" balance and update the "Final" row)
@@ -89,6 +91,7 @@ The real workflow I follow today goes as follows:
 6. Confirmation ID and Notes share a cell because I didn't want to make the table too big
 
 The way I would like to work in Stashy is:
+
 1. Set the date of the sit down
 2. Update the opening balance of the asset accounts
 3. Update the liability accounts for their account balance AND statement balance

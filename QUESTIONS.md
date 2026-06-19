@@ -147,7 +147,7 @@ For now just full session replay.
 
 36. Which account-level graphs are actually useful first: balance over time, payments over time, utilization, remaining balance after payment, threshold crossings, or something else?
 
-Balance over time is the main one. 
+Balance over time is the main one.
 
 37. Should graph datapoints come from sessions only, payment records only, account snapshots, or a normalized event ledger?
 

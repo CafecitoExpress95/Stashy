@@ -12,9 +12,10 @@ This subtree contains code intended for reuse across routes and features.
 
 ## Public Surface
 
-- `index.ts` is the `$lib` barrel. Export only intentionally shared APIs.
+- `index.ts` is the `$lib` barrel and currently exports the Phase 1 domain API.
+- `domain/` owns exact money, records, calculations, thresholds, validation, and history selectors;
+  read `domain/AGENTS.md` before changing it.
 - `assets/favicon.svg` is the current bundled favicon.
-- No domain objects, services, stores, persistence adapters, or reusable components exist yet.
 
 ## Map Requirements
 

@@ -23,7 +23,7 @@ Read the child guide for the subtree being changed:
 - `routes/+layout.ts`: enables prerendering and trailing-slash URLs.
 - `routes/+layout.svelte`: root layout and favicon setup.
 - `routes/+page.svelte`: current scaffold home page.
-- `lib/index.ts`: current `$lib` public barrel; no application exports yet.
+- `lib/index.ts`: public barrel exporting the reusable Phase 1 domain layer.
 
 ## Conventions
 

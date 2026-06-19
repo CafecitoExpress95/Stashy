@@ -62,3 +62,8 @@ When priorities compete, preserve this order:
   must create the three cross-linked artifacts defined under `docs/`.
 - Documentation-only, comment-only, and read-only tasks need no artifact trio unless requested.
 - Final responses should give a short outcome, test status, risks, and links to any artifacts.
+
+## Security
+
+- Do not use encoded PowerShell commands (e.g. BASE64 encoded commands)
+- Avoid PowerShell commands likely to trip antivirus
