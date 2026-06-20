@@ -2,28 +2,78 @@
 
 ## Table of Contents
 
-- [Purpose](#purpose)
-- [MS-01 Outcome](#ms-01-outcome)
-- [Guiding Priorities](#guiding-priorities)
-- [Scope Boundaries](#scope-boundaries)
-- [Proposed Decisions for Roadmap Review](#proposed-decisions-for-roadmap-review)
-- [Delivery and Test Strategy](#delivery-and-test-strategy)
-  - [Test Ownership](#test-ownership)
-  - [Standard Quality Gate](#standard-quality-gate)
-  - [Canonical Acceptance Scenario](#canonical-acceptance-scenario)
-- [Phase 0 — Product Contract and Engineering Foundation](#phase-0--product-contract-and-engineering-foundation)
-- [Phase 1 — Exact Money and Domain Model](#phase-1--exact-money-and-domain-model)
-- [Phase 2 — Account and App Configuration](#phase-2--account-and-app-configuration)
-- [Phase 3 — Sit-Down Cockpit](#phase-3--sit-down-cockpit)
-- [Phase 4 — Local Persistence, Drafts, and Stand Up](#phase-4--local-persistence-drafts-and-stand-up)
-- [Phase 5 — Archive, Session Replay, and Editing](#phase-5--archive-session-replay-and-editing)
-- [Phase 6 — Whiteboard and Account History](#phase-6--whiteboard-and-account-history)
-- [Phase 7 — Data Export, Import, and Recovery](#phase-7--data-export-import-and-recovery)
-- [Phase 8 — Responsive UX, Accessibility, and Release Hardening](#phase-8--responsive-ux-accessibility-and-release-hardening)
-- [MS-01 Final Acceptance Test](#ms-01-final-acceptance-test)
-- [Definition of Done](#definition-of-done)
-- [Post-MVP Parking Lot](#post-mvp-parking-lot)
-- [Roadmap Review Checklist](#roadmap-review-checklist)
+- [Stashy MVP Roadmap (MS-01)](#stashy-mvp-roadmap-ms-01)
+  - [Table of Contents](#table-of-contents)
+  - [Purpose](#purpose)
+  - [MS-01 Outcome](#ms-01-outcome)
+  - [Guiding Priorities](#guiding-priorities)
+  - [Scope Boundaries](#scope-boundaries)
+  - [Proposed Decisions for Roadmap Review](#proposed-decisions-for-roadmap-review)
+  - [Delivery and Test Strategy](#delivery-and-test-strategy)
+    - [Test Ownership](#test-ownership)
+    - [Standard Quality Gate](#standard-quality-gate)
+    - [Canonical Acceptance Scenario](#canonical-acceptance-scenario)
+  - [Phase 0 — Product Contract and Engineering Foundation](#phase-0--product-contract-and-engineering-foundation)
+    - [Objective](#objective)
+    - [Development Goals](#development-goals)
+    - [Codex Test Instructions](#codex-test-instructions)
+    - [Anthony Test Instructions](#anthony-test-instructions)
+    - [Exit Criteria](#exit-criteria)
+  - [Phase 1 — Exact Money and Domain Model](#phase-1--exact-money-and-domain-model)
+    - [Objective](#objective-1)
+    - [Development Goals](#development-goals-1)
+    - [Codex Test Instructions](#codex-test-instructions-1)
+    - [Anthony Test Instructions](#anthony-test-instructions-1)
+    - [Exit Criteria](#exit-criteria-1)
+  - [Phase 2 — Account and App Configuration](#phase-2--account-and-app-configuration)
+    - [Objective](#objective-2)
+    - [Development Goals](#development-goals-2)
+    - [Codex Test Instructions](#codex-test-instructions-2)
+    - [Anthony Test Instructions](#anthony-test-instructions-2)
+    - [Exit Criteria](#exit-criteria-2)
+  - [Phase 3 — Sit-Down Cockpit](#phase-3--sit-down-cockpit)
+    - [Objective](#objective-3)
+    - [Development Goals](#development-goals-3)
+    - [Codex Test Instructions](#codex-test-instructions-3)
+    - [Anthony Test Instructions](#anthony-test-instructions-3)
+    - [Exit Criteria](#exit-criteria-3)
+  - [Phase 4 — Local Persistence, Drafts, and Stand Up](#phase-4--local-persistence-drafts-and-stand-up)
+    - [Objective](#objective-4)
+    - [Development Goals](#development-goals-4)
+    - [Codex Test Instructions](#codex-test-instructions-4)
+    - [Anthony Test Instructions](#anthony-test-instructions-4)
+    - [Exit Criteria](#exit-criteria-4)
+  - [Phase 5 — Archive, Session Replay, and Editing](#phase-5--archive-session-replay-and-editing)
+    - [Objective](#objective-5)
+    - [Development Goals](#development-goals-5)
+    - [Codex Test Instructions](#codex-test-instructions-5)
+    - [Anthony Test Instructions](#anthony-test-instructions-5)
+    - [Exit Criteria](#exit-criteria-5)
+  - [Phase 6 — Whiteboard and Account History](#phase-6--whiteboard-and-account-history)
+    - [Objective](#objective-6)
+    - [Development Goals](#development-goals-6)
+    - [Codex Test Instructions](#codex-test-instructions-6)
+    - [Anthony Test Instructions](#anthony-test-instructions-6)
+    - [Exit Criteria](#exit-criteria-6)
+  - [Phase 7 — Data Export, Import, and Recovery](#phase-7--data-export-import-and-recovery)
+    - [Objective](#objective-7)
+    - [Development Goals](#development-goals-7)
+    - [Codex Test Instructions](#codex-test-instructions-7)
+    - [Anthony Test Instructions](#anthony-test-instructions-7)
+    - [Exit Criteria](#exit-criteria-7)
+  - [Phase 8 — Responsive UX, Accessibility, and Release Hardening](#phase-8--responsive-ux-accessibility-and-release-hardening)
+    - [Objective](#objective-8)
+    - [Development Goals](#development-goals-8)
+    - [Codex Test Instructions](#codex-test-instructions-8)
+    - [Anthony Test Instructions](#anthony-test-instructions-8)
+    - [Exit Criteria](#exit-criteria-8)
+  - [MS-01 Final Acceptance Test](#ms-01-final-acceptance-test)
+    - [Codex Preparation](#codex-preparation)
+    - [Anthony End-to-End Exercise](#anthony-end-to-end-exercise)
+    - [Acceptance Rule](#acceptance-rule)
+  - [Definition of Done](#definition-of-done)
+  - [Post-MVP Parking Lot](#post-mvp-parking-lot)
+  - [Roadmap Review Checklist](#roadmap-review-checklist)
 
 ## Purpose
 
@@ -106,9 +156,10 @@ These details are not fully fixed by the design document. The roadmap uses the f
 4. **Import behavior:** Import is a full restore that replaces current local data only after validation, a warning, and explicit confirmation. Merge import is deferred.
 5. **Draft meaning:** A draft is an intentionally unfinished session. A stood-up session may still have blank confirmation IDs or notes and remains editable.
 6. **Account names in history:** Historical records keep account IDs and display the account's current name, matching the global-rename requirement.
+   1. **Anthony's Comment** --> We can create a unique account ID when the account is created. Displaying the correct account name is just a matter of looking up the name attached to the ID. Thus, when the name is changed, you're changing the name in storage at the ID's record rather than having to go back and updating every single record every created.
 7. **Same-date sessions:** Multiple sessions may share a sit-down date; creation time and ID keep them distinct.
 8. **Audit scope:** Editing a saved session records before-and-after snapshots for changed session, account-record, and payment-record entities. Draft autosaves do not create audit noise.
-9. **Initial analysis rule:** The Whiteboard's latest state comes from the latest stood-up session. Drafts do not change the dashboard.
+9.  **Initial analysis rule:** The Whiteboard's latest state comes from the latest stood-up session. Drafts do not change the dashboard.
 10. **Archive scope:** MS-01 provides a reverse-chronological list and full replay. Advanced search and filtering are not release blockers.
 
 ## Delivery and Test Strategy
@@ -120,7 +171,7 @@ These details are not fully fixed by the design document. The roadmap uses the f
 - Type checking, linting, and production builds.
 - Unit tests for money, payment, threshold, validation, and migration logic.
 - Repository and IndexedDB integration tests.
-- Browser tests for critical user paths.
+- ~~Browser tests for critical user paths.~~
 - Import/export round trips and invalid-file handling.
 - Responsive and accessibility checks that can be automated.
 
