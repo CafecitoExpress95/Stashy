@@ -1,18 +1,36 @@
+/** Payment resolution and projected source-asset calculations. */
 import type { AccountId } from './identity';
 import { createIssue, type DomainIssue, type DomainResult } from './issues';
 import { subtractMoney, ZERO_MONEY, type Money } from './money';
-import type { DraftPaymentRecord, PaymentRecord } from './types';
+import type { DraftPaymentRecord, PaymentMode, PaymentRecord } from './types';
 
-export interface AssetOpeningBalance {
+/** The user-entered opening balance for an asset in the current sit-down. */
+export type AssetOpeningBalance = {
 	readonly accountId: AccountId;
 	readonly openingBalance: Money;
-}
+};
 
-export interface ProjectedAssetBalance extends AssetOpeningBalance {
+/** An asset opening balance composed with its payment-adjusted result. */
+export type ProjectedAssetBalance = AssetOpeningBalance & {
 	readonly projectedFinalBalance: Money;
-}
+};
 
-export function calculatePayment(record: DraftPaymentRecord): DomainResult<PaymentRecord> {
+type CalculationReadyPayment =
+	| (DraftPaymentRecord & {
+			readonly sourceAssetAccountId: AccountId;
+			readonly paymentMode: Exclude<PaymentMode, 'custom'>;
+			readonly startingAccountBalance: Money;
+			readonly startingStatementBalance: Money;
+	  })
+	| (DraftPaymentRecord & {
+			readonly sourceAssetAccountId: AccountId;
+			readonly paymentMode: 'custom';
+			readonly customPaymentAmount: Money;
+			readonly startingAccountBalance: Money;
+			readonly startingStatementBalance: Money;
+	  });
+
+function getPaymentCompletenessErrors(record: DraftPaymentRecord): DomainIssue[] {
 	const errors: DomainIssue[] = [];
 
 	if (!record.sourceAssetAccountId) {
@@ -28,6 +46,7 @@ export function calculatePayment(record: DraftPaymentRecord): DomainResult<Payme
 			)
 		);
 	}
+
 	if (!record.paymentMode) {
 		errors.push(
 			createIssue(
@@ -41,16 +60,21 @@ export function calculatePayment(record: DraftPaymentRecord): DomainResult<Payme
 			)
 		);
 	}
+
 	if (record.startingAccountBalance === undefined) {
 		errors.push(
 			createIssue(
 				'error',
 				'missing-starting-account-balance',
 				'Enter the starting account balance.',
-				{ entityId: record.id, field: 'startingAccountBalance' }
+				{
+					entityId: record.id,
+					field: 'startingAccountBalance'
+				}
 			)
 		);
 	}
+
 	if (record.startingStatementBalance === undefined) {
 		errors.push(
 			createIssue(
@@ -61,6 +85,7 @@ export function calculatePayment(record: DraftPaymentRecord): DomainResult<Payme
 			)
 		);
 	}
+
 	if (record.paymentMode === 'custom' && record.customPaymentAmount === undefined) {
 		errors.push(
 			createIssue('error', 'missing-custom-payment-amount', 'Enter the custom payment amount.', {
@@ -70,75 +95,74 @@ export function calculatePayment(record: DraftPaymentRecord): DomainResult<Payme
 		);
 	}
 
-	if (
-		errors.length > 0 ||
-		!record.sourceAssetAccountId ||
-		!record.paymentMode ||
-		record.startingAccountBalance === undefined ||
-		record.startingStatementBalance === undefined
-	) {
-		return { ok: false, errors };
-	}
+	return errors;
+}
 
-	let paymentAmount: Money;
+function resolvePaymentAmount(record: CalculationReadyPayment): Money {
 	switch (record.paymentMode) {
 		case 'full-balance':
-			paymentAmount = record.startingAccountBalance;
-			break;
+			return record.startingAccountBalance;
 		case 'statement-balance':
-			paymentAmount = record.startingStatementBalance;
-			break;
+			return record.startingStatementBalance;
 		case 'custom':
-			if (record.customPaymentAmount === undefined) {
-				return {
-					ok: false,
-					errors: [
-						createIssue(
-							'error',
-							'missing-custom-payment-amount',
-							'Enter the custom payment amount.',
-							{ entityId: record.id, field: 'customPaymentAmount' }
-						)
-					]
-				};
-			}
-			paymentAmount = record.customPaymentAmount;
-			break;
+			return record.customPaymentAmount;
 	}
+}
 
+function buildPaymentRecord(record: CalculationReadyPayment, paymentAmount: Money): PaymentRecord {
 	return {
-		ok: true,
-		value: {
-			id: record.id,
-			createdAt: record.createdAt,
-			updatedAt: record.updatedAt,
-			sessionId: record.sessionId,
-			liabilityAccountId: record.liabilityAccountId,
-			sourceAssetAccountId: record.sourceAssetAccountId,
-			paymentMode: record.paymentMode,
-			paymentAmount,
-			startingAccountBalance: record.startingAccountBalance,
-			startingStatementBalance: record.startingStatementBalance,
-			remainingAccountBalance: subtractMoney(record.startingAccountBalance, paymentAmount),
-			remainingStatementBalance:
-				record.paymentMode === 'custom'
-					? subtractMoney(record.startingStatementBalance, paymentAmount)
-					: ZERO_MONEY,
-			confirmationId: record.confirmationId,
-			notes: record.notes
-		}
+		id: record.id,
+		createdAt: record.createdAt,
+		updatedAt: record.updatedAt,
+		sessionId: record.sessionId,
+		liabilityAccountId: record.liabilityAccountId,
+		sourceAssetAccountId: record.sourceAssetAccountId,
+		paymentMode: record.paymentMode,
+		paymentAmount,
+		startingAccountBalance: record.startingAccountBalance,
+		startingStatementBalance: record.startingStatementBalance,
+		remainingAccountBalance: subtractMoney(record.startingAccountBalance, paymentAmount),
+		// Full and statement modes represent satisfying the selected statement amount.
+		// Custom mode preserves signed subtraction so overpayments remain visible.
+		remainingStatementBalance:
+			record.paymentMode === 'custom'
+				? subtractMoney(record.startingStatementBalance, paymentAmount)
+				: ZERO_MONEY,
+		confirmationId: record.confirmationId,
+		notes: record.notes
 	};
 }
 
-export function calculateProjectedAssetBalances(
+/**
+ * Resolves a complete draft payment into the balances that will be saved.
+ * Missing calculation fields are returned together instead of failing one at a time.
+ */
+export function calculatePayment(record: DraftPaymentRecord): DomainResult<PaymentRecord> {
+	const errors = getPaymentCompletenessErrors(record);
+	if (errors.length > 0) {
+		return { ok: false, errors };
+	}
+
+	// The checks above establish the required-field union for the calculation helpers.
+	const readyPayment = record as CalculationReadyPayment;
+	const paymentAmount = resolvePaymentAmount(readyPayment);
+
+	return {
+		ok: true,
+		value: buildPaymentRecord(readyPayment, paymentAmount)
+	};
+}
+
+function getProjectionErrors(
 	assets: readonly AssetOpeningBalance[],
 	payments: readonly PaymentRecord[]
-): DomainResult<readonly ProjectedAssetBalance[]> {
+): DomainIssue[] {
 	const errors: DomainIssue[] = [];
-	const seenLiabilities = new Set<string>();
+	const seenLiabilityIds = new Set<AccountId>();
+	const availableAssetIds = new Set(assets.map((asset) => asset.accountId));
 
 	for (const payment of payments) {
-		if (seenLiabilities.has(payment.liabilityAccountId)) {
+		if (seenLiabilityIds.has(payment.liabilityAccountId)) {
 			errors.push(
 				createIssue(
 					'error',
@@ -148,20 +172,9 @@ export function calculateProjectedAssetBalances(
 				)
 			);
 		}
-		seenLiabilities.add(payment.liabilityAccountId);
-	}
+		seenLiabilityIds.add(payment.liabilityAccountId);
 
-	const projectedByAsset = new Map<string, ProjectedAssetBalance>();
-	for (const asset of assets) {
-		projectedByAsset.set(asset.accountId, {
-			...asset,
-			projectedFinalBalance: asset.openingBalance
-		});
-	}
-
-	for (const payment of payments) {
-		const asset = projectedByAsset.get(payment.sourceAssetAccountId);
-		if (!asset) {
+		if (!availableAssetIds.has(payment.sourceAssetAccountId)) {
 			errors.push(
 				createIssue(
 					'error',
@@ -170,21 +183,54 @@ export function calculateProjectedAssetBalances(
 					{ entityId: payment.id, field: 'sourceAssetAccountId' }
 				)
 			);
-			continue;
+		}
+	}
+
+	return errors;
+}
+
+/**
+ * Subtracts every complete payment from its selected source asset.
+ * Any duplicate liability or unavailable source makes the whole projection untrusted.
+ */
+export function calculateProjectedAssetBalances(
+	assets: readonly AssetOpeningBalance[],
+	payments: readonly PaymentRecord[]
+): DomainResult<readonly ProjectedAssetBalance[]> {
+	const errors = getProjectionErrors(assets, payments);
+	if (errors.length > 0) {
+		// Validate before subtracting so duplicate rows are never applied even temporarily.
+		return { ok: false, errors };
+	}
+
+	const projectedBalancesByAssetId = new Map<AccountId, ProjectedAssetBalance>();
+	for (const asset of assets) {
+		projectedBalancesByAssetId.set(asset.accountId, {
+			...asset,
+			projectedFinalBalance: asset.openingBalance
+		});
+	}
+
+	for (const payment of payments) {
+		const asset = projectedBalancesByAssetId.get(payment.sourceAssetAccountId);
+		if (!asset) {
+			throw new Error('Projection source validation and calculation are out of sync.');
 		}
 
-		projectedByAsset.set(payment.sourceAssetAccountId, {
+		projectedBalancesByAssetId.set(payment.sourceAssetAccountId, {
 			...asset,
 			projectedFinalBalance: subtractMoney(asset.projectedFinalBalance, payment.paymentAmount)
 		});
 	}
 
-	if (errors.length > 0) {
-		return { ok: false, errors };
-	}
-
 	return {
 		ok: true,
-		value: assets.map((asset) => projectedByAsset.get(asset.accountId)!)
+		value: assets.map((asset) => {
+			const projectedAsset = projectedBalancesByAssetId.get(asset.accountId);
+			if (!projectedAsset) {
+				throw new Error('Every opening asset must have a projected balance.');
+			}
+			return projectedAsset;
+		})
 	};
 }

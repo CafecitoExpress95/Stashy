@@ -159,7 +159,7 @@ These details are not fully fixed by the design document. The roadmap uses the f
    1. **Anthony's Comment** --> We can create a unique account ID when the account is created. Displaying the correct account name is just a matter of looking up the name attached to the ID. Thus, when the name is changed, you're changing the name in storage at the ID's record rather than having to go back and updating every single record every created.
 7. **Same-date sessions:** Multiple sessions may share a sit-down date; creation time and ID keep them distinct.
 8. **Audit scope:** Editing a saved session records before-and-after snapshots for changed session, account-record, and payment-record entities. Draft autosaves do not create audit noise.
-9.  **Initial analysis rule:** The Whiteboard's latest state comes from the latest stood-up session. Drafts do not change the dashboard.
+9. **Initial analysis rule:** The Whiteboard's latest state comes from the latest stood-up session. Drafts do not change the dashboard.
 10. **Archive scope:** MS-01 provides a reverse-chronological list and full replay. Advanced search and filtering are not release blockers.
 
 ## Delivery and Test Strategy

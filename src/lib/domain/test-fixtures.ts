@@ -1,3 +1,4 @@
+/** Reusable canonical Phase 1 scenario shared by deterministic domain tests. */
 import { calculatePayment, type AssetOpeningBalance } from './calculations';
 import {
 	accountIdFromString,
@@ -163,6 +164,7 @@ export const canonicalAssetOpenings: readonly AssetOpeningBalance[] = [
 ];
 
 export function calculateCanonicalPayments(): readonly PaymentRecord[] {
+	/** Resolves every complete payment in the canonical acceptance scenario. */
 	return canonicalPaymentDrafts.map((draft) => {
 		const result = calculatePayment(draft);
 		if (!result.ok) {

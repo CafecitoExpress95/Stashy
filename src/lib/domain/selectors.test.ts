@@ -86,7 +86,7 @@ describe('account history selector', () => {
 		});
 
 		expect(history.map((point) => point.sitDownDate)).toEqual(['2026-06-18', '2026-06-20']);
-		expect(history.map((point) => point.balance)).toEqual([20_010, 21_000]);
+		expect(history.map((point) => point.graphBalance)).toEqual([20_010, 21_000]);
 		expect(history.every((point) => point.accountName === 'Renamed Card A')).toBe(true);
 		expect(history[0].payment).toEqual(
 			expect.objectContaining({
@@ -147,7 +147,7 @@ describe('account history selector', () => {
 
 		expect(history).toHaveLength(1);
 		expect(history[0]).toEqual(
-			expect.objectContaining({ accountType: 'asset', balance: 32_480, payment: null })
+			expect.objectContaining({ accountType: 'asset', graphBalance: 32_480, payment: null })
 		);
 	});
 

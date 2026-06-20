@@ -1,0 +1,44 @@
+import { describe, expect, it } from 'vitest';
+import * as libApi from '../index';
+import * as domainApi from './index';
+
+const expectedRuntimeExports = [
+	'IdentityFormatError',
+	'MoneyInvariantError',
+	'ZERO_MONEY',
+	'accountIdFromString',
+	'accountRecordIdFromString',
+	'addMoney',
+	'appSettingsIdFromString',
+	'auditEntryIdFromString',
+	'calculatePayment',
+	'calculateProjectedAssetBalances',
+	'compareMoney',
+	'formatMoney',
+	'getAssetThresholdState',
+	'isoTimestampFromString',
+	'moneyFromMinorUnits',
+	'parseMoneyInput',
+	'paymentRecordIdFromString',
+	'resolveAssetThresholds',
+	'selectAccountHistory',
+	'sessionIdFromString',
+	'sitDownDateFromString',
+	'subtractMoney',
+	'sumMoney',
+	'validateAssetThresholds',
+	'validateDraftSession',
+	'validateStandUpSession'
+].sort();
+
+describe('public domain API', () => {
+	it('exports only the intentional runtime API from the domain barrel', () => {
+		expect(Object.keys(domainApi).sort()).toEqual(expectedRuntimeExports);
+		expect(domainApi).not.toHaveProperty('createIssue');
+	});
+
+	it('re-exports the same intentional runtime API through $lib', () => {
+		expect(Object.keys(libApi).sort()).toEqual(expectedRuntimeExports);
+		expect(libApi).not.toHaveProperty('createIssue');
+	});
+});

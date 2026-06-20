@@ -142,6 +142,7 @@ describe('financial warnings', () => {
 		expect(result.projectedAssetBalances?.map((asset) => asset.projectedFinalBalance)).toEqual([
 			32_480, 50_000
 		]);
+		expect(result.resolvedPayments).toHaveLength(3);
 	});
 
 	it('allows negative custom payments with the agreed warning copy', () => {

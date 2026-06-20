@@ -1,9 +1,12 @@
+/** Asset threshold validation, policy resolution, and color-state classification. */
 import { createIssue, type DomainResult } from './issues';
 import type { Money } from './money';
 import type { AssetThresholdPolicy, AssetThresholds } from './types';
 
+/** The passive visual state shown for an asset balance. */
 export type AssetThresholdState = 'none' | 'healthy' | 'warning' | 'danger';
 
+/** Ensures the danger boundary is strictly lower than the warning boundary. */
 export function validateAssetThresholds(
 	thresholds: AssetThresholds
 ): DomainResult<AssetThresholds> {
@@ -24,6 +27,7 @@ export function validateAssetThresholds(
 	return { ok: true, value: thresholds };
 }
 
+/** Resolves inherit, custom, and off policies to effective thresholds. */
 export function resolveAssetThresholds(
 	defaults: AssetThresholds | null,
 	policy: AssetThresholdPolicy
@@ -40,6 +44,10 @@ export function resolveAssetThresholds(
 	return validateAssetThresholds(thresholds);
 }
 
+/**
+ * Classifies a balance using strict "below" checks. Equality at warning is
+ * healthy; equality at danger remains warning. Each lower state starts one cent below.
+ */
 export function getAssetThresholdState(
 	balance: Money,
 	thresholds: AssetThresholds | null

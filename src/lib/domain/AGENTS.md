@@ -2,6 +2,8 @@
 
 This directory owns the pure TypeScript contracts and deterministic behavior shared by later MS-01 phases.
 
+Read `README.md` for the domain data flow and a plain-language guide to the TypeScript notation used here.
+
 ## Public Modules
 
 - `identity.ts`: branded entity IDs, UTC timestamps, and sit-down date constructors.
@@ -11,7 +13,7 @@ This directory owns the pure TypeScript contracts and deterministic behavior sha
 - `thresholds.ts`: threshold validation, inheritance/override resolution, and state classification.
 - `validation.ts`: draft versus stand-up completeness checks plus non-blocking financial warnings.
 - `selectors.ts`: saved-snapshot account history datapoints.
-- `index.ts`: intentional public barrel re-exported by `$lib`.
+- `index.ts`: explicit intentional public barrel re-exported by `$lib`; internal factories stay private.
 
 `test-fixtures.ts` contains the canonical roadmap scenario for tests and is not part of the public barrel.
 
@@ -30,3 +32,7 @@ This directory owns the pure TypeScript contracts and deterministic behavior sha
 - Keep this layer independent of Svelte, browser storage, and route orchestration.
 - Add or update deterministic unit tests for every changed money, validation, threshold, or selector rule.
 - Preserve stable issue codes and public field names once cockpit or persistence code consumes them.
+- Compose flat record types from small field fragments with intersections (`&`); do not introduce
+  base domain classes, nested metadata wrappers, or inherited persistence state.
+- Use module summaries and JSDoc for public APIs. Add inline comments for non-obvious domain intent
+  or TypeScript mechanics, but do not narrate routine assignments line by line.
