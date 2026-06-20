@@ -52,6 +52,7 @@ type AccountDetails = RecordTimestamps & {
 	readonly id: AccountId;
 	readonly name: string;
 	readonly archived: boolean;
+	readonly sortOrder: number;
 };
 
 /** An account that can fund liability payments. */

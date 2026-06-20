@@ -19,11 +19,12 @@ Read the child guide for the subtree being changed:
 ## Current Top-Level Map
 
 - `app.html`: SvelteKit HTML template.
+- `app.css`: application-wide responsive visual foundation and form styles.
 - `app.d.ts`: global application declaration scaffold.
-- `routes/+layout.ts`: enables prerendering and trailing-slash URLs.
-- `routes/+layout.svelte`: root layout and favicon setup.
-- `routes/+page.svelte`: current scaffold home page.
-- `lib/index.ts`: public barrel exporting the reusable Phase 1 domain layer.
+- `routes/`: prerendered product shell, launchpad, placeholders, error recovery, and configuration orchestration.
+- `lib/index.ts`: public barrel exporting the reusable domain API.
+- `lib/components/`: shared shell and configuration presentation; read its child guide.
+- `lib/persistence/`: IndexedDB schema and configuration repository; read its child guide.
 
 ## Conventions
 

@@ -8,7 +8,8 @@ Read `README.md` for the domain data flow and a plain-language guide to the Type
 
 - `identity.ts`: branded entity IDs, UTC timestamps, and sit-down date constructors.
 - `money.ts`: branded safe-integer cents, strict parsing/formatting, and guarded arithmetic.
-- `types.ts`: app settings, account, session, draft/final record, and audit-entry models.
+- `types.ts`: app settings, ordered account, session, draft/final record, and audit-entry models.
+- `configuration.ts`: account-name validation, ordering, active/archive selectors, and policy checks.
 - `calculations.ts`: payment resolution and source-asset projections.
 - `thresholds.ts`: threshold validation, inheritance/override resolution, and state classification.
 - `validation.ts`: draft versus stand-up completeness checks plus non-blocking financial warnings.
@@ -26,6 +27,7 @@ Read `README.md` for the domain data flow and a plain-language guide to the Type
 - Full- and statement-balance modes clear the remaining statement balance; custom mode preserves signed subtraction.
 - Threshold boundaries are strict `below` checks: warning equality is healthy and danger equality is warning.
 - History comes only from saved `AccountRecord` snapshots joined to non-draft sessions; never infer transactions.
+- Account names are normalized and globally unique; `sortOrder` is a non-negative position scoped by account type.
 
 ## Change Rules
 

@@ -28,7 +28,16 @@ describe('composed domain record shapes', () => {
 		const asset = canonicalAccounts[0];
 
 		expect(Object.keys(asset).sort()).toEqual(
-			['archived', 'createdAt', 'id', 'name', 'thresholdPolicy', 'type', 'updatedAt'].sort()
+			[
+				'archived',
+				'createdAt',
+				'id',
+				'name',
+				'sortOrder',
+				'thresholdPolicy',
+				'type',
+				'updatedAt'
+			].sort()
 		);
 		expect(asset).not.toHaveProperty('timestamps');
 		expect(asset).not.toHaveProperty('details');

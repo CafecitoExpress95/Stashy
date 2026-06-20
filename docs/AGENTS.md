@@ -6,6 +6,7 @@ This file supplements the repository-level `AGENTS.md` for `docs/`.
 
 - `DESIGN_DOC.md` is the authority for product intent and the MS-01 user experience.
 - `MVP_ROADMAP.md` is the authority for delivery phases, test ownership, gates, and acceptance.
+- `ARCHITECTURE.md` records approved stored-data decisions, naming, deployment, and migration conventions.
 - The user specifies the active phase; reports must record it without advancing it.
 - Completion artifacts describe completed work. They must not redefine requirements or silently
   settle unresolved product decisions.

@@ -12,10 +12,12 @@ This subtree contains code intended for reuse across routes and features.
 
 ## Public Surface
 
-- `index.ts` is the `$lib` barrel and explicitly names the supported Phase 1 domain API; do not use
-  wildcard exports that can leak internal helpers.
-- `domain/` owns exact money, records, calculations, thresholds, validation, and history selectors;
-  read `domain/AGENTS.md` before changing it.
+- `index.ts` is the `$lib` barrel and explicitly names the supported domain API; do not use wildcard
+  exports that can leak internal helpers.
+- `domain/` owns exact money, records, configuration selectors, calculations, thresholds,
+  validation, and history; read `domain/AGENTS.md` before changing it.
+- `persistence/` owns the versioned IndexedDB configuration repository; read its child guide.
+- `components/` owns the reusable app shell and configuration forms; read its child guide.
 - `assets/favicon.svg` is the current bundled favicon.
 
 ## Map Requirements

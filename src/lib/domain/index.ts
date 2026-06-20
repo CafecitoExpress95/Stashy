@@ -1,6 +1,25 @@
-/** Intentional public surface for the pure Phase 1 domain layer. */
+/** Intentional public surface for the pure Phase 1 and Phase 2 domain layers. */
 export { calculatePayment, calculateProjectedAssetBalances } from './calculations';
 export type { AssetOpeningBalance, ProjectedAssetBalance } from './calculations';
+
+export {
+	compareAccounts,
+	findAdjacentActiveAccount,
+	getNextAccountSortOrder,
+	isValidAccountSortOrder,
+	normalizeAccountName,
+	selectActiveAccounts,
+	selectArchivedAccounts,
+	sortAccounts,
+	validateAccountName,
+	validateAssetThresholdPolicy
+} from './configuration';
+export type {
+	AccountMoveDirection,
+	AccountNameIssue,
+	AccountNameValidationResult,
+	AccountType
+} from './configuration';
 
 export {
 	IdentityFormatError,

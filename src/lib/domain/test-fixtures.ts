@@ -37,6 +37,7 @@ export const canonicalAccounts: readonly Account[] = [
 		type: 'asset',
 		name: 'Checking',
 		archived: false,
+		sortOrder: 0,
 		thresholdPolicy: {
 			mode: 'custom',
 			thresholds: {
@@ -52,6 +53,7 @@ export const canonicalAccounts: readonly Account[] = [
 		type: 'asset',
 		name: 'Savings',
 		archived: false,
+		sortOrder: 1,
 		thresholdPolicy: { mode: 'off' },
 		createdAt: fixtureTimestamp,
 		updatedAt: fixtureTimestamp
@@ -61,6 +63,7 @@ export const canonicalAccounts: readonly Account[] = [
 		type: 'liability',
 		name: 'Card A',
 		archived: false,
+		sortOrder: 0,
 		createdAt: fixtureTimestamp,
 		updatedAt: fixtureTimestamp
 	},
@@ -69,6 +72,7 @@ export const canonicalAccounts: readonly Account[] = [
 		type: 'liability',
 		name: 'Card B',
 		archived: false,
+		sortOrder: 1,
 		createdAt: fixtureTimestamp,
 		updatedAt: fixtureTimestamp
 	},
@@ -77,6 +81,7 @@ export const canonicalAccounts: readonly Account[] = [
 		type: 'liability',
 		name: 'Card C',
 		archived: false,
+		sortOrder: 2,
 		createdAt: fixtureTimestamp,
 		updatedAt: fixtureTimestamp
 	}

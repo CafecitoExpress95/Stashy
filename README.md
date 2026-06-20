@@ -1,42 +1,37 @@
-# sv
+# Stashy
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Stashy is a local-first payment sit-down application. MS-01 is designed to replace Anthony's
+Google Sheet workflow while prioritizing overdraft prevention, fast entry, clean history, and
+useful analysis.
 
-## Creating a project
+## Development
 
-If you're seeing this, you've probably already done this step. Congrats!
-
-```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@0.16.1 create --template minimal --types ts --add prettier eslint --install npm .
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+```powershell
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+Run the complete local quality gate with:
 
-To create a production version of your app:
-
-```sh
-npm run build
+```powershell
+npm run verify
 ```
 
-You can preview the production build with `npm run preview`.
+The individual commands are `npm run check`, `npm run lint`, `npm run test:unit`,
+`npm run test:e2e`, and `npm run build`.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+## Local Data and Static Hosting
+
+IndexedDB is Stashy's MS-01 source of truth. Browser storage is scoped to the page origin, so:
+
+- Development and production-preview servers use different databases because their ports differ.
+- Changing hostnames, ports, protocols, or deployment paths creates a different storage origin.
+- Opening the built files directly with `file://` is unsupported.
+- Production should use a stable HTTPS origin on a static host.
+
+Stashy requires no application server, account, cloud database, or network connection after its
+static assets load. Run `npm run build` to write the deployable site to `build/`, then use
+`npm run preview` to smoke-test that output locally.
+
+Export and restore are planned for a later MS-01 phase. Until then, browser data should be treated
+as local to the exact origin where it was entered.

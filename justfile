@@ -52,15 +52,15 @@ fresh:
 # =========================================================
 
 clean:
-    Remove-Item -Recurse -Force node_modules, .svelte-kit, build, docs -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force .svelte-kit, build, .output -ErrorAction SilentlyContinue
 
-reset: clean
+reset:
+    Remove-Item -Recurse -Force node_modules, .svelte-kit, build, .output -ErrorAction SilentlyContinue
     npm install
 
 rebuild:
     Remove-Item -Recurse -Force .svelte-kit -ErrorAction SilentlyContinue
     npm run build
-    New-Item -ItemType File -Force docs/.nojekyll | Out-Null
 
 # =========================================================
 # BUILD / DEPLOY
@@ -68,10 +68,9 @@ rebuild:
 
 build:
     npm run build
-    New-Item -ItemType File -Force docs/.nojekyll | Out-Null
 
-deploy: build
-    git add docs; git diff --cached --quiet; if ($LASTEXITCODE -eq 0) { Write-Host "No docs changes to deploy."; exit 0 }; git commit -m "Build for deployment"; git push
+verify:
+    npm run verify
 
 # =========================================================
 # DAILY GIT
