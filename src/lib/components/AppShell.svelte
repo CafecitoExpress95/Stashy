@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+	import { asset, resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import type { Snippet } from 'svelte';
 
@@ -29,7 +29,14 @@
 <div class="app-frame">
 	<header class="app-header">
 		<a class="brand" href={resolve('/')} aria-label="Stashy home">
-			<span class="brand-mark" aria-hidden="true">S</span>
+			<img
+				class="brand-mark"
+				src={asset('/logo.png')}
+				alt=""
+				width="980"
+				height="899"
+				decoding="async"
+			/>
 			<span>
 				<strong>Stashy</strong>
 				<small>Payment sit-downs, without spreadsheet dread.</small>

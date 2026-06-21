@@ -2,7 +2,8 @@
 
 This subtree contains reusable Svelte presentation for the Phase 0 shell and Phase 2 configuration.
 
-- `AppShell.svelte`: persistent product-language navigation and application frame.
+- `AppShell.svelte`: persistent product-language navigation and application frame using the
+  supplied static Stashy logo.
 - `EmptyState.svelte`: reusable launchpad/placeholder callout.
 - `AccountEditor.svelte`: create/rename form with asset threshold policy controls.
 - `AccountList.svelte`: ordered active-account list with edit, move, and safe archive actions.

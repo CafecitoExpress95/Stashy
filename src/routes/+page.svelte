@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+	import { asset, resolve } from '$app/paths';
 </script>
 
 <svelte:head><title>Home - Stashy</title></svelte:head>
 
-<section class="page-intro">
+<section class="page-intro home-intro">
 	<div>
 		<p class="eyebrow">Your payment workspace</p>
 		<h1>Make the money sit-down feel manageable.</h1>
@@ -13,6 +13,14 @@
 			this workspace as MS-01 grows.
 		</p>
 	</div>
+	<img
+		class="home-logo"
+		src={asset('/logo.png')}
+		alt="Stashy squirrel holding an acorn beside stacks of cash"
+		width="980"
+		height="899"
+		fetchpriority="high"
+	/>
 </section>
 
 <div class="launch-grid" aria-label="Stashy areas">

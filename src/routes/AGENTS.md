@@ -15,9 +15,10 @@ This subtree owns SvelteKit routing and presentation orchestration.
 ## Current Routes
 
 - `+layout.ts`: statically prerenders the application and uses trailing-slash URLs.
-- `+layout.svelte`: wraps every page in the reusable responsive application shell.
+- `+layout.svelte`: wraps every page in the reusable responsive application shell and publishes
+  the static favicon, touch icon, and browser theme color.
 - `+error.svelte`: branded 404/runtime recovery with retry and home actions.
-- `+page.svelte`: product launchpad for current and upcoming MS-01 areas.
+- `+page.svelte`: branded product launchpad for current and upcoming MS-01 areas.
 - `sit-down/`, `archive/`, `whiteboard/`, and `configuration/data/`: honest upcoming-phase empty states.
 - `configuration/accounts/`: Phase 2 IndexedDB-backed account and threshold configuration workspace.
 

@@ -18,7 +18,8 @@ This subtree contains code intended for reuse across routes and features.
   validation, and history; read `domain/AGENTS.md` before changing it.
 - `persistence/` owns the versioned IndexedDB configuration repository; read its child guide.
 - `components/` owns the reusable app shell and configuration forms; read its child guide.
-- `assets/favicon.svg` is the current bundled favicon.
+- Product logo and favicon assets are served from `static/` so every prerendered route uses the
+  same supplied iconography.
 
 ## Map Requirements
 

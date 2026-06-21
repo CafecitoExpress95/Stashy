@@ -30,6 +30,19 @@ test('the product shell uses approved navigation language', async ({ page }) => 
 	await expect(navigation.getByRole('link', { name: 'Save & Restore' })).toBeVisible();
 });
 
+test('the shell uses the supplied static branding assets', async ({ page }) => {
+	await page.goto('/');
+
+	await expect(page.getByRole('link', { name: 'Stashy home' }).locator('img')).toHaveAttribute(
+		'src',
+		/logo\.png$/
+	);
+	await expect(
+		page.getByAltText('Stashy squirrel holding an acorn beside stacks of cash')
+	).toBeVisible();
+	await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /favicon\.png$/);
+});
+
 test('the global error page offers home and retry recovery', async ({ page }) => {
 	await page.goto('/not-a-stashy-route/');
 	await expect(page.getByRole('heading', { name: 'That page is not in the stash.' })).toBeVisible();
