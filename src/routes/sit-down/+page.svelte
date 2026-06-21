@@ -1,19 +1,22 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import AssetProjectionDock from '$lib/components/AssetProjectionDock.svelte';
 	import AssetProjectionPanel from '$lib/components/AssetProjectionPanel.svelte';
 	import LiabilityPaymentCard from '$lib/components/LiabilityPaymentCard.svelte';
+	import SitDownReceipt from '$lib/components/SitDownReceipt.svelte';
 	import {
 		accountIdFromString,
 		accountRecordIdFromString,
 		createCockpitForm,
 		deriveCockpit,
 		getCockpitDraftData,
+		getCockpitStandUpData,
 		hydrateCockpitForm,
 		isoTimestampFromString,
 		paymentRecordIdFromString,
 		sessionIdFromString,
+		validateStandUpSession,
 		type Account,
 		type AppSettings,
 		type CockpitAssetForm,
@@ -24,12 +27,14 @@
 	} from '$lib/domain';
 	import {
 		createBrowserConfigurationRepository,
-		createBrowserSitDownDraftRepository,
+		createBrowserSitDownRepository,
 		type ConfigurationRepository,
-		type SitDownDraftRepository
+		type SitDownDraftSnapshot,
+		type SitDownRepository,
+		type StoodUpSitDownSnapshot
 	} from '$lib/persistence';
 
-	type ActionState = 'unsaved' | 'saving' | 'saved' | 'failed' | 'ready';
+	type ActionState = 'unsaved' | 'saving' | 'saved' | 'invalid' | 'failed';
 	type PaymentField =
 		| 'sourceAssetAccountId'
 		| 'paymentMode'
@@ -39,25 +44,52 @@
 		| 'confirmationId'
 		| 'notes';
 
+	const AUTOSAVE_DELAY_MS = 800;
+
 	let configurationRepository = $state<ConfigurationRepository | null>(null);
-	let draftRepository = $state<SitDownDraftRepository | null>(null);
+	let sitDownRepository = $state<SitDownRepository | null>(null);
 	let settings = $state<AppSettings | null>(null);
 	let accounts = $state<Account[]>([]);
 	let form = $state<CockpitForm | null>(null);
+	let completedSnapshot = $state<StoodUpSitDownSnapshot | null>(null);
 	let loading = $state(true);
 	let loadError = $state('');
 	let actionState = $state<ActionState>('unsaved');
 	let actionMessage = $state('Nothing has been saved yet.');
 	let standUpAttempted = $state(false);
+	let pendingSaves = $state(0);
+	let confirmingStandUp = $state(false);
+	let startingNew = $state(false);
+	let startMessage = $state('');
+	let standUpDialog = $state<HTMLDialogElement>();
+	let editRevision = 0;
+	let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+	let saveChain: Promise<void> = Promise.resolve();
+
 	let derivation = $derived(form && settings ? deriveCockpit(form, accounts, settings) : null);
+	let receiptWarnings = $derived(
+		completedSnapshot
+			? validateStandUpSession({
+					session: completedSnapshot.session,
+					accounts,
+					accountRecords: completedSnapshot.accountRecords,
+					paymentRecords: completedSnapshot.paymentRecords.map((payment) => ({
+						...payment,
+						startingStatementBalance: payment.startingStatementBalance ?? undefined
+					}))
+				}).warnings
+			: []
+	);
 	let hasRequiredAccounts = $derived(
 		form !== null && form.assets.length > 0 && form.payments.length > 0
 	);
-	let busy = $derived(actionState === 'saving');
+	let busy = $derived(pendingSaves > 0 || confirmingStandUp || startingNew);
 
 	onMount(() => {
 		void loadCockpit();
 	});
+
+	onDestroy(() => clearAutosave());
 
 	function localDate(): string {
 		const now = new Date();
@@ -88,24 +120,31 @@
 	}
 
 	async function loadCockpit(): Promise<void> {
+		clearAutosave();
 		loading = true;
 		loadError = '';
 		try {
 			configurationRepository = createBrowserConfigurationRepository();
-			draftRepository = createBrowserSitDownDraftRepository();
+			sitDownRepository = createBrowserSitDownRepository();
 			const configuration = await configurationRepository.loadConfiguration();
 			settings = configuration.settings;
 			accounts = [...configuration.accounts];
-			const savedDraft = await draftRepository.loadLatestDraft();
-			if (savedDraft) {
-				form = hydrateCockpitForm(savedDraft, accounts);
+			const latest = await sitDownRepository.loadLatestSession();
+			if (latest?.session.isDraft) {
+				form = hydrateCockpitForm(latest as SitDownDraftSnapshot, accounts);
+				completedSnapshot = null;
 				actionState = 'saved';
 				actionMessage = 'Saved draft resumed from this browser.';
+			} else if (latest) {
+				completedSnapshot = latest as StoodUpSitDownSnapshot;
+				form = null;
 			} else {
 				form = newForm();
+				completedSnapshot = null;
 				actionState = 'unsaved';
-				actionMessage = 'New sit-down. Nothing has been saved yet.';
+				actionMessage = 'New sit-down. Autosave begins after your first valid edit.';
 			}
+			editRevision = 0;
 		} catch (error) {
 			loadError =
 				error instanceof Error ? error.message : 'Stashy could not open the sit-down cockpit.';
@@ -114,10 +153,27 @@
 		}
 	}
 
+	function clearAutosave(): void {
+		if (autosaveTimer !== null) {
+			clearTimeout(autosaveTimer);
+			autosaveTimer = null;
+		}
+	}
+
+	function scheduleAutosave(): void {
+		clearAutosave();
+		autosaveTimer = setTimeout(() => {
+			autosaveTimer = null;
+			void queueDraftSave(false);
+		}, AUTOSAVE_DELAY_MS);
+	}
+
 	function markUnsaved(): void {
 		standUpAttempted = false;
+		editRevision += 1;
 		actionState = 'unsaved';
-		actionMessage = 'Unsaved changes.';
+		actionMessage = 'Unsaved changes. Autosave is waiting for a quiet moment.';
+		scheduleAutosave();
 	}
 
 	function updateAsset(asset: CockpitAssetForm, value: string): void {
@@ -204,40 +260,116 @@
 		document.getElementById(controlId)?.focus();
 	}
 
-	async function saveDraft(): Promise<void> {
-		if (!form || !derivation || !draftRepository || busy) return;
-		const draft = getCockpitDraftData(derivation);
-		if (!draft) {
-			actionState = 'failed';
-			actionMessage = 'Fix the highlighted date or money input before saving this draft.';
-			focusControl(derivation.firstDraftBlockingControlId);
+	async function queueDraftSave(manual: boolean): Promise<void> {
+		if (!form || !derivation || !sitDownRepository) return;
+		clearAutosave();
+		const snapshot = getCockpitDraftData(derivation);
+		if (!snapshot) {
+			actionState = 'invalid';
+			actionMessage = manual
+				? 'Fix the highlighted date or money input before saving this draft.'
+				: 'Autosave paused. Fix the invalid date or money input; the last valid draft is safe.';
+			if (manual) focusControl(derivation.firstDraftBlockingControlId);
 			return;
 		}
+
+		const revision = editRevision;
 		actionState = 'saving';
-		actionMessage = 'Saving this draft to this browser…';
-		try {
-			const saved = await draftRepository.saveDraft(draft);
-			form.updatedAt = saved.session.updatedAt;
-			actionState = 'saved';
-			actionMessage = 'Draft saved in this browser.';
-		} catch (error) {
-			actionState = 'failed';
-			actionMessage = error instanceof Error ? error.message : 'The draft could not be saved.';
-		}
+		actionMessage = manual ? 'Saving this draft now…' : 'Autosaving this draft…';
+		pendingSaves += 1;
+		const operation = saveChain.then(async () => {
+			try {
+				const saved = await sitDownRepository?.saveDraft(snapshot);
+				if (!saved || !form || form.sessionId !== saved.session.id) return;
+				form.updatedAt = saved.session.updatedAt;
+				if (revision === editRevision) {
+					actionState = 'saved';
+					actionMessage = manual
+						? 'Draft saved in this browser.'
+						: 'All changes autosaved in this browser.';
+				}
+			} catch (error) {
+				actionState = 'failed';
+				actionMessage =
+					error instanceof Error
+						? `${error.message} Your current entries are still on screen; retry when ready.`
+						: 'The draft could not be saved. Your current entries are still on screen.';
+			} finally {
+				pendingSaves -= 1;
+			}
+		});
+		saveChain = operation.catch(() => undefined);
+		await operation;
 	}
 
-	function standUp(): void {
-		if (!derivation || busy) return;
+	async function saveDraft(): Promise<void> {
+		await queueDraftSave(true);
+	}
+
+	function requestStandUp(): void {
+		if (!derivation || confirmingStandUp) return;
 		standUpAttempted = true;
-		if (!derivation.standUpValidation?.isValid || derivation.firstStandUpBlockingControlId) {
+		const snapshot = getCockpitStandUpData(derivation);
+		if (!snapshot) {
 			actionState = 'failed';
 			actionMessage = 'Complete the highlighted payment details before standing up.';
 			focusControl(derivation.firstStandUpBlockingControlId);
 			return;
 		}
-		actionState = 'ready';
-		actionMessage =
-			'This sit-down is complete and ready to stand up. Phase 4 will save the final state; this remains a draft for now.';
+		clearAutosave();
+		standUpDialog?.showModal();
+	}
+
+	async function confirmStandUp(): Promise<void> {
+		if (!derivation || !sitDownRepository || confirmingStandUp) return;
+		const snapshot = getCockpitStandUpData(derivation);
+		if (!snapshot) {
+			standUpDialog?.close();
+			requestStandUp();
+			return;
+		}
+		confirmingStandUp = true;
+		actionState = 'saving';
+		actionMessage = 'Saving the completed snapshot…';
+		try {
+			await saveChain;
+			const saved = await sitDownRepository.standUp(snapshot);
+			completedSnapshot = saved;
+			form = null;
+			standUpDialog?.close();
+		} catch (error) {
+			standUpDialog?.close();
+			actionState = 'failed';
+			actionMessage =
+				error instanceof Error
+					? `${error.message} The sit-down was not stood up; your entries remain available.`
+					: 'The sit-down was not stood up. Your entries remain available.';
+		} finally {
+			confirmingStandUp = false;
+		}
+	}
+
+	async function startNewSitDown(): Promise<void> {
+		if (!settings || !sitDownRepository || startingNew) return;
+		startingNew = true;
+		startMessage = '';
+		try {
+			const fresh = newForm();
+			const snapshot = getCockpitDraftData(deriveCockpit(fresh, accounts, settings));
+			if (!snapshot) throw new Error('Stashy could not prepare a new draft.');
+			const saved = await sitDownRepository.saveDraft(snapshot);
+			form = hydrateCockpitForm(saved, accounts);
+			completedSnapshot = null;
+			editRevision = 0;
+			actionState = 'saved';
+			actionMessage = 'New blank draft saved in this browser.';
+			standUpAttempted = false;
+		} catch (error) {
+			startMessage =
+				error instanceof Error ? error.message : 'A new sit-down could not be started.';
+		} finally {
+			startingNew = false;
+		}
 	}
 </script>
 
@@ -272,7 +404,7 @@
 {#if loading}
 	<section class="panel loading-panel" aria-live="polite">
 		<h2>Opening your cockpit…</h2>
-		<p>Stashy is loading account configuration and any saved draft.</p>
+		<p>Stashy is loading account configuration and your latest sit-down.</p>
 	</section>
 {:else if loadError}
 	<section class="panel error-panel" role="alert">
@@ -280,6 +412,15 @@
 		<p>{loadError}</p>
 		<button class="button secondary" type="button" onclick={loadCockpit}>Try again</button>
 	</section>
+{:else if completedSnapshot}
+	<SitDownReceipt
+		snapshot={completedSnapshot}
+		{accounts}
+		warnings={receiptWarnings}
+		{startingNew}
+		{startMessage}
+		onStartNew={startNewSitDown}
+	/>
 {:else if !hasRequiredAccounts}
 	<section class="panel first-run cockpit-setup">
 		<p class="eyebrow">Account setup</p>
@@ -361,8 +502,8 @@
 					? 'Saving'
 					: actionState === 'saved'
 						? 'Draft saved'
-						: actionState === 'ready'
-							? 'Ready to stand up'
+						: actionState === 'invalid'
+							? 'Autosave paused'
 							: actionState === 'failed'
 								? 'Needs attention'
 								: 'Unsaved'}
@@ -371,11 +512,45 @@
 		</div>
 		<div class="cockpit-action-buttons">
 			<button class="button secondary" type="button" disabled={busy} onclick={saveDraft}>
-				{busy ? 'Saving…' : 'Save Draft'}
+				{pendingSaves > 0 ? 'Saving…' : 'Save Draft'}
 			</button>
-			<button class="button primary" type="button" disabled={busy} onclick={standUp}>
+			<button
+				class="button primary"
+				type="button"
+				disabled={confirmingStandUp}
+				onclick={requestStandUp}
+			>
 				Stand Up
 			</button>
 		</div>
 	</section>
 {/if}
+
+<dialog
+	class="stand-up-dialog"
+	aria-labelledby="stand-up-title"
+	bind:this={standUpDialog}
+	oncancel={() => (confirmingStandUp = false)}
+>
+	<form method="dialog" class="stand-up-dialog-content">
+		<p class="eyebrow">Commit this snapshot</p>
+		<h2 id="stand-up-title">Ready to stand up?</h2>
+		<p>
+			Stashy will save these opening balances, final balances, and payment decisions as a completed
+			session. Completed-session editing arrives with Archive in Phase 5.
+		</p>
+		<div class="dialog-actions">
+			<button class="button secondary" type="submit" disabled={confirmingStandUp}
+				>Keep Sitting</button
+			>
+			<button
+				class="button primary"
+				type="button"
+				disabled={confirmingStandUp}
+				onclick={confirmStandUp}
+			>
+				{confirmingStandUp ? 'Standing Up…' : 'Confirm Stand Up'}
+			</button>
+		</div>
+	</form>
+</dialog>

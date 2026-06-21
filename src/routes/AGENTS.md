@@ -19,7 +19,7 @@ This subtree owns SvelteKit routing and presentation orchestration.
   the static favicon, touch icon, and browser theme color.
 - `+error.svelte`: branded 404/runtime recovery with retry and home actions.
 - `+page.svelte`: branded product launchpad for current and upcoming MS-01 areas.
-- `sit-down/`: Phase 3 transient cockpit orchestration, configuration loading, draft resume/save, and Stand Up readiness validation.
+- `sit-down/`: Phase 4 cockpit lifecycle orchestration, visible debounced autosave, manual save, confirmed atomic Stand Up, persisted receipt, and new-draft creation.
 - `archive/`, `whiteboard/`, and `configuration/data/`: honest upcoming-phase empty states.
 - `configuration/accounts/`: Phase 2 IndexedDB-backed account and threshold configuration workspace.
 

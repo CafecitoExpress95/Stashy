@@ -27,8 +27,13 @@ export function openStashyDatabase(factory: IDBFactory): Promise<IDBDatabase> {
 			return;
 		}
 		request.onupgradeneeded = (event) => {
+			if (!request.transaction) {
+				reject(new Error('Stashy storage upgrade transaction is unavailable.'));
+				return;
+			}
 			applyDatabaseMigrations(
 				request.result,
+				request.transaction,
 				event.oldVersion,
 				event.newVersion ?? STASHY_DATABASE_VERSION
 			);

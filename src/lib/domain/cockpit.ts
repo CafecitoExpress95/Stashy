@@ -18,6 +18,7 @@ import {
 } from './thresholds';
 import type {
 	Account,
+	AccountRecord,
 	AppSettings,
 	DraftAccountRecord,
 	DraftPaymentRecord,
@@ -105,9 +106,15 @@ export type CockpitDerivation = {
 };
 
 export type CockpitDraftData = {
-	readonly session: Session;
+	readonly session: Session & { readonly isDraft: true };
 	readonly accountRecords: readonly DraftAccountRecord[];
 	readonly paymentRecords: readonly DraftPaymentRecord[];
+};
+
+export type CockpitStandUpData = {
+	readonly session: Session & { readonly isDraft: false };
+	readonly accountRecords: readonly AccountRecord[];
+	readonly paymentRecords: readonly PaymentRecord[];
 };
 
 type ParsedMoney = {
@@ -248,7 +255,7 @@ export function deriveCockpit(
 	settings: AppSettings
 ): CockpitDerivation {
 	const fieldErrors: CockpitFieldError[] = [];
-	let session: Session | null = null;
+	let session: (Session & { readonly isDraft: true }) | null = null;
 	try {
 		session = {
 			id: form.sessionId,
@@ -478,8 +485,45 @@ export function getCockpitDraftData(derivation: CockpitDerivation): CockpitDraft
 		return null;
 	}
 	return {
-		session: derivation.session,
+		session: { ...derivation.session, isDraft: true },
 		accountRecords: derivation.accountRecords,
 		paymentRecords: derivation.paymentRecords
+	};
+}
+
+/** Returns a complete immutable snapshot only after strict Stand Up validation succeeds. */
+export function getCockpitStandUpData(derivation: CockpitDerivation): CockpitStandUpData | null {
+	if (
+		!derivation.session ||
+		!derivation.standUpValidation?.isValid ||
+		derivation.firstStandUpBlockingControlId
+	) {
+		return null;
+	}
+
+	const accountRecords: AccountRecord[] = [];
+	for (const record of derivation.accountRecords) {
+		if (record.openingBalance === undefined || record.finalBalance === undefined) {
+			return null;
+		}
+		accountRecords.push({
+			...record,
+			openingBalance: record.openingBalance,
+			finalBalance: record.finalBalance,
+			openingStatementBalance: record.openingStatementBalance ?? null,
+			finalStatementBalance: record.finalStatementBalance ?? null
+		});
+	}
+
+	const paymentRecords: PaymentRecord[] = [];
+	for (const payment of derivation.payments) {
+		if (!payment.resolvedPayment) return null;
+		paymentRecords.push(payment.resolvedPayment);
+	}
+
+	return {
+		session: { ...derivation.session, isDraft: false },
+		accountRecords,
+		paymentRecords
 	};
 }

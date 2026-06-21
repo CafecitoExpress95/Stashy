@@ -16,6 +16,8 @@ import {
 	type AppSettings,
 	type DraftAccountRecord,
 	type DraftPaymentRecord,
+	type AccountRecord,
+	type PaymentRecord,
 	type AssetThresholdPolicy,
 	type AssetThresholds,
 	type IsoTimestamp,
@@ -289,5 +291,50 @@ export function parseStoredDraftPaymentRecord(value: unknown): DraftPaymentRecor
 		notes: readNullableString(value.notes, 'Payment notes'),
 		createdAt: readTimestamp(value.createdAt, 'Payment record createdAt'),
 		updatedAt: readTimestamp(value.updatedAt, 'Payment record updatedAt')
+	};
+}
+function readNullableMoney(value: unknown, label: string): Money | null {
+	return value === null ? null : readMoney(value, label);
+}
+
+export function parseStoredAccountRecord(value: unknown): AccountRecord {
+	const draft = parseStoredDraftAccountRecord(value);
+	if (!isRecord(value)) return corrupt('Stored account record must be an object.');
+	return {
+		...draft,
+		openingBalance: readMoney(value.openingBalance, 'Account opening balance'),
+		finalBalance: readMoney(value.finalBalance, 'Account final balance'),
+		openingStatementBalance: readNullableMoney(
+			value.openingStatementBalance,
+			'Account opening statement balance'
+		),
+		finalStatementBalance: readNullableMoney(
+			value.finalStatementBalance,
+			'Account final statement balance'
+		)
+	};
+}
+
+export function parseStoredPaymentRecord(value: unknown): PaymentRecord {
+	if (!isRecord(value)) return corrupt('Stored payment record must be an object.');
+	const draft = parseStoredDraftPaymentRecord({ ...value, startingStatementBalance: undefined });
+	if (!draft.sourceAssetAccountId || !draft.paymentMode) {
+		return corrupt('Completed payment source and mode are required.');
+	}
+	return {
+		...draft,
+		sourceAssetAccountId: draft.sourceAssetAccountId,
+		paymentMode: draft.paymentMode,
+		paymentAmount: readMoney(value.paymentAmount, 'Payment amount'),
+		startingAccountBalance: readMoney(value.startingAccountBalance, 'Starting account balance'),
+		startingStatementBalance: readNullableMoney(
+			value.startingStatementBalance,
+			'Starting statement balance'
+		),
+		remainingAccountBalance: readMoney(value.remainingAccountBalance, 'Remaining account balance'),
+		remainingStatementBalance: readNullableMoney(
+			value.remainingStatementBalance,
+			'Remaining statement balance'
+		)
 	};
 }

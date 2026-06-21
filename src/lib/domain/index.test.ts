@@ -21,6 +21,7 @@ const expectedRuntimeExports = [
 	'formatMoney',
 	'getAssetThresholdState',
 	'getCockpitDraftData',
+	'getCockpitStandUpData',
 	'getNextAccountSortOrder',
 	'hydrateCockpitForm',
 	'isValidAccountSortOrder',

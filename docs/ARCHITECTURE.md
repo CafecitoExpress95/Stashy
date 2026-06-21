@@ -46,8 +46,8 @@ store nullable statement values and floor present remaining statement balances a
 ## IndexedDB Schema and Migrations
 
 - Database name: `stashy`.
-- Current IndexedDB version: `2`. The persisted `AppSettings.schemaVersion` remains `1`.
-- Object stores use plural domain names except the singleton `appSettings` store. Version 2 contains `appSettings`, `accounts`, `sessions`, `accountRecords`, and `paymentRecords`.
+- Current IndexedDB version: `3`. The persisted `AppSettings.schemaVersion` remains `1`.
+- Object stores use plural domain names except the singleton `appSettings` store. Version 3 contains `appSettings`, `accounts`, `sessions`, `accountRecords`, `paymentRecords`, and `auditEntries`.
 - The singleton settings record uses one stable UUID for every installation.
 - Upgrade functions are ordered by target version and only perform changes introduced by that
   version.
@@ -56,23 +56,27 @@ store nullable statement values and floor present remaining statement balances a
 - Persisted records are validated when read. Unsupported or corrupt data is reported and is never
   silently discarded or reset.
 
-## Phase 3 Draft Persistence Boundary
+## Phase 4 Sit-Down Lifecycle Persistence
 
-Phase 3 brought forward the minimum durable workflow needed for meaningful cockpit testing:
+Phase 4 extends the normalized Phase 3 records through one `SitDownRepository` boundary:
 
-- `SitDownDraftSnapshot` stores one unfinished `Session` with flat `DraftAccountRecord` and
-  `DraftPaymentRecord` children linked by stable IDs.
-- Explicit **Save Draft** replaces that session's child-record set in one IndexedDB transaction.
-- Reload resumes the most recently updated draft and resolves account names from current account
-  configuration; it does not silently add accounts configured after the draft began.
-- Draft saves update edit timestamps, preserve creation timestamps and record IDs, and create no
-  audit entries.
-- Blank statement balances remain absent in draft records. Full and custom payments can still resolve,
-  while Statement payment mode requires a value. Completed payment snapshots use nullable statement
-  values and never store a negative remaining statement balance.
-- Stand Up performs strict completeness validation in Phase 3 but does not persist a completed
-  session or change `isDraft` to `false`.
+- `SitDownDraftSnapshot` stores intentionally incomplete records. `StoodUpSitDownSnapshot` stores
+  complete `AccountRecord` and `PaymentRecord` snapshots with `Session.isDraft` set to `false`.
+- Draft and Stand Up operations replace one session and its child set in one IndexedDB transaction.
+  Stable IDs and creation timestamps are preserved; edit timestamps advance only after a committed write.
+- Writes are serialized. A failed or interrupted transaction leaves the previous committed snapshot
+  intact, while the route keeps current text input available for retry.
+- Valid edits autosave after an 800 ms quiet period. **Save Draft** remains as an immediate explicit
+  flush, and invalid date or money text pauses autosave without overwriting the last valid draft.
+- Stand Up validates completeness, asks for confirmation, waits behind any earlier draft write, and
+  saves the resolved opening/final account balances and payment results atomically.
+- Blank confirmation IDs and notes are valid final data. Omitted statement balances are stored as
+  `null`; supplied remaining statement balances retain the zero floor.
+- Reload opens the most recently updated session. Drafts return to the editable cockpit; stood-up
+  sessions return to a read-only completion receipt until **Start New Sit-Down** commits a new blank draft.
+- Version 3 removes the low-value boolean `isDraft` index, keeps the chronological `updatedAt` index,
+  and creates the empty `auditEntries` store with entity and chronology indexes for Phase 5 editing.
+- Version 1 and version 2 databases migrate in place. Persisted records are validated according to
+  their draft or completed lifecycle and corrupt data is surfaced rather than reset.
 
-Phase 4 owns completed-session persistence, final snapshot guarantees, lifecycle/status hardening,
-interrupted-write recovery, migration coverage beyond the version-1-to-version-2 draft migration,
-and any additional indexes required by archive or history queries.
+Phase 5 owns archive listing, completed-session editing, and creation/presentation of audit entries.

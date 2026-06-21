@@ -11,15 +11,17 @@ export {
 	createBrowserConfigurationRepository
 } from './indexeddb-configuration-repository';
 export {
-	IndexedDbSitDownDraftRepository,
-	createBrowserSitDownDraftRepository
-} from './indexeddb-sit-down-draft-repository';
-export { SitDownDraftRepositoryError } from './sit-down-draft-repository';
+	IndexedDbSitDownRepository,
+	createBrowserSitDownRepository
+} from './indexeddb-sit-down-repository';
+export { SitDownRepositoryError } from './sit-down-repository';
 export type {
-	SitDownDraftRepository,
-	SitDownDraftRepositoryErrorCode,
-	SitDownDraftSnapshot
-} from './sit-down-draft-repository';
+	SitDownDraftSnapshot,
+	SitDownRepository,
+	SitDownRepositoryErrorCode,
+	SitDownSnapshot,
+	StoodUpSitDownSnapshot
+} from './sit-down-repository';
 export {
 	ACCOUNTS_STORE,
 	ACCOUNT_RECORDS_STORE,
@@ -27,6 +29,10 @@ export {
 	ACCOUNT_RECORD_SESSION_INDEX,
 	APP_SETTINGS_ID,
 	APP_SETTINGS_STORE,
+	AUDIT_ENTRIES_STORE,
+	AUDIT_ENTRY_ENTITY_ID_INDEX,
+	AUDIT_ENTRY_ENTITY_TYPE_INDEX,
+	AUDIT_ENTRY_UPDATED_AT_INDEX,
 	PAYMENT_RECORDS_STORE,
 	PAYMENT_RECORD_LIABILITY_INDEX,
 	PAYMENT_RECORD_SESSION_INDEX,

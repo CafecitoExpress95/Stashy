@@ -29,12 +29,15 @@ function createRepository(factory: IDBFactory): IndexedDbConfigurationRepository
 function openRawDatabase(factory: IDBFactory): Promise<IDBDatabase> {
 	return new Promise((resolve, reject) => {
 		const request = factory.open(STASHY_DATABASE_NAME, STASHY_DATABASE_VERSION);
-		request.onupgradeneeded = (event) =>
+		request.onupgradeneeded = (event) => {
+			if (!request.transaction) throw new Error('Missing upgrade transaction.');
 			applyDatabaseMigrations(
 				request.result,
+				request.transaction,
 				event.oldVersion,
 				event.newVersion ?? STASHY_DATABASE_VERSION
 			);
+		};
 		request.onsuccess = () => resolve(request.result);
 		request.onerror = () => reject(request.error);
 	});

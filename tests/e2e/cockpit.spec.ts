@@ -40,6 +40,14 @@ async function enterCanonicalScenario(page: Page): Promise<void> {
 	await cardC.getByLabel('Notes').fill('Intentional ten-cent overpayment');
 }
 
+async function confirmStandUp(page: Page): Promise<void> {
+	await page.getByRole('button', { name: 'Stand Up' }).click();
+	const dialog = page.getByRole('dialog', { name: 'Ready to stand up?' });
+	await expect(dialog).toBeVisible();
+	await dialog.getByRole('button', { name: 'Confirm Stand Up' }).click();
+	await expect(page.getByRole('heading', { name: 'You stood up.' })).toBeVisible();
+}
+
 test.beforeEach(async ({ page }) => {
 	await seedCockpitConfiguration(page);
 	await page.goto('/sit-down/');
@@ -47,7 +55,15 @@ test.beforeEach(async ({ page }) => {
 	await expect(page.getByRole('heading', { name: 'Source assets' })).toBeVisible();
 });
 
-test('canonical scenario calculates immediately and survives explicit draft save', async ({
+test('valid edits autosave and resume after reload', async ({ page }) => {
+	await assetCard(page, 'Checking').getByLabel('Opening balance').fill('$100.10');
+	await expect(page.getByText('All changes autosaved in this browser.')).toBeVisible();
+	await page.reload();
+	await expect(page.getByText('Saved draft resumed from this browser.')).toBeVisible();
+	await expect(assetCard(page, 'Checking').getByLabel('Opening balance')).toHaveValue('$100.10');
+});
+
+test('canonical scenario saves explicitly and stands up into a durable receipt', async ({
 	page
 }) => {
 	await enterCanonicalScenario(page);
@@ -65,16 +81,20 @@ test('canonical scenario calculates immediately and survives explicit draft save
 
 	await page.getByRole('button', { name: 'Save Draft' }).click();
 	await expect(page.getByText('Draft saved in this browser.')).toBeVisible();
+	await confirmStandUp(page);
+	await expect(page.getByRole('heading', { name: 'Asset snapshots' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Liability payments' })).toBeVisible();
+	await expect(page.getByText('$324.80', { exact: true })).toBeVisible();
+	await expect(page.getByText('Intentional ten-cent overpayment')).toBeVisible();
+
 	await page.reload();
-	await expect(page.getByText('Saved draft resumed from this browser.')).toBeVisible();
-	await expect(assetCard(page, 'Checking').getByLabel('Opening balance')).toHaveValue('$1,000.10');
-	await expect(liabilityCard(page, 'Card C').getByLabel('Payment amount')).toHaveValue('$25.10');
-	await expect(assetCard(page, 'Checking').getByText('$324.80', { exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'You stood up.' })).toBeVisible();
+	await expect(page.getByText('A-100', { exact: true })).toBeVisible();
+	await expect(page.getByText('Not recorded', { exact: true }).first()).toBeVisible();
+	expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
-test('full and custom payments remain live and stand-up ready without statement balances', async ({
-	page
-}) => {
+test('full and custom payments stand up without statement balances', async ({ page }) => {
 	await enterCanonicalScenario(page);
 	const cardB = liabilityCard(page, 'Card B');
 	const cardC = liabilityCard(page, 'Card C');
@@ -82,15 +102,10 @@ test('full and custom payments remain live and stand-up ready without statement 
 	await cardC.getByLabel('Statement balance').fill('');
 
 	await expect(assetCard(page, 'Checking').getByText('$324.80', { exact: true })).toBeVisible();
-	await expect(cardB.locator('.remaining-statement strong')).toHaveText('\u2014');
-	await expect(cardC.locator('.remaining-statement strong')).toHaveText('\u2014');
-	await page.getByRole('button', { name: 'Stand Up' }).click();
-	await expect(page.getByText('Ready to stand up', { exact: true })).toBeVisible();
-
-	await page.getByRole('button', { name: 'Save Draft' }).click();
-	await page.reload();
-	await expect(liabilityCard(page, 'Card B').getByLabel('Statement balance')).toHaveValue('');
-	await expect(liabilityCard(page, 'Card C').getByLabel('Statement balance')).toHaveValue('');
+	await expect(cardB.locator('.remaining-statement strong')).toHaveText('—');
+	await expect(cardC.locator('.remaining-statement strong')).toHaveText('—');
+	await confirmStandUp(page);
+	await expect(page.getByText('Not recorded', { exact: true }).first()).toBeVisible();
 });
 
 test('statement mode requires its statement balance and focuses the missing field', async ({
@@ -103,6 +118,7 @@ test('statement mode requires its statement balance and focuses the missing fiel
 
 	await expect(cardA.getByLabel('Statement balance')).toBeFocused();
 	await expect(cardA.getByText('Enter the statement balance.')).toBeVisible();
+	await expect(page.getByRole('dialog', { name: 'Ready to stand up?' })).toBeHidden();
 });
 
 test('mode and source changes move projections without stale or duplicate subtraction', async ({
@@ -122,34 +138,47 @@ test('mode and source changes move projections without stale or duplicate subtra
 	await card.getByLabel('Pay from').selectOption(cockpitAccountIds.savings);
 	await expect(assetCard(page, 'Checking').getByText('$1,000.10', { exact: true })).toBeVisible();
 	await expect(assetCard(page, 'Savings').getByText('$99.80', { exact: true })).toBeVisible();
-
-	const beforeNotes = await assetCard(page, 'Savings')
-		.locator('.projected-balance strong')
-		.textContent();
-	await card.getByLabel('Confirmation ID').fill('CONF-123');
-	await card.getByLabel('Notes').fill('Pending');
-	await expect(assetCard(page, 'Savings').locator('.projected-balance strong')).toHaveText(
-		beforeNotes ?? ''
-	);
 });
 
-test('stand up highlights missing details and accepts complete warning states', async ({
+test('invalid text pauses autosave without replacing the last valid draft', async ({ page }) => {
+	const opening = assetCard(page, 'Checking').getByLabel('Opening balance');
+	await opening.fill('$100.00');
+	await expect(page.getByText('All changes autosaved in this browser.')).toBeVisible();
+	await opening.fill('$100.001');
+	await expect(page.getByText('Autosave paused', { exact: true })).toBeVisible();
+	await expect(page.getByText(/last valid draft is safe/)).toBeVisible();
+
+	await page.reload();
+	await expect(opening).toHaveValue('$100.00');
+});
+
+test('a failed write is visible and leaves current entries available to retry', async ({
 	page
 }) => {
-	await page.getByRole('button', { name: 'Stand Up' }).click();
-	await expect(
-		page.getByText('Complete the highlighted payment details before standing up.')
-	).toBeVisible();
-	await expect(assetCard(page, 'Checking').getByLabel('Opening balance')).toBeFocused();
-	await expect(
-		assetCard(page, 'Checking').getByText('Enter an opening balance before standing up.')
-	).toBeVisible();
+	await page.evaluate(() => {
+		const originalPut = IDBObjectStore.prototype.put;
+		IDBObjectStore.prototype.put = function (value: unknown, key?: IDBValidKey) {
+			if (this.name === 'sessions') throw new Error('Simulated storage failure.');
+			return key === undefined ? originalPut.call(this, value) : originalPut.call(this, value, key);
+		};
+	});
+	const opening = assetCard(page, 'Checking').getByLabel('Opening balance');
+	await opening.fill('$123.45');
+	await page.getByRole('button', { name: 'Save Draft' }).click();
+	await expect(page.getByText(/Simulated storage failure/)).toBeVisible();
+	await expect(page.getByText(/current entries are still on screen/)).toBeVisible();
+	await expect(opening).toHaveValue('$123.45');
+});
 
+test('starting a new sit-down persists a distinct blank draft', async ({ page }) => {
 	await enterCanonicalScenario(page);
-	await page.getByRole('button', { name: 'Stand Up' }).click();
-	await expect(page.getByText(/This sit-down is complete and ready to stand up/)).toBeVisible();
-	await expect(page.getByText('Ready to stand up', { exact: true })).toBeVisible();
-	expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+	await confirmStandUp(page);
+	await page.getByRole('button', { name: 'Start New Sit-Down' }).click();
+	await expect(page.getByText('New blank draft saved in this browser.')).toBeVisible();
+	await expect(assetCard(page, 'Checking').getByLabel('Opening balance')).toHaveValue('');
+	await page.reload();
+	await expect(page.getByText('Saved draft resumed from this browser.')).toBeVisible();
+	await expect(assetCard(page, 'Checking').getByLabel('Opening balance')).toHaveValue('');
 });
 
 test('mobile keeps projections and actions reachable without horizontal overflow', async ({

@@ -6,6 +6,7 @@ export {
 	createCockpitForm,
 	deriveCockpit,
 	getCockpitDraftData,
+	getCockpitStandUpData,
 	hydrateCockpitForm
 } from './cockpit';
 export type {
@@ -17,7 +18,8 @@ export type {
 	CockpitForm,
 	CockpitIdFactory,
 	CockpitPaymentForm,
-	CockpitPaymentView
+	CockpitPaymentView,
+	CockpitStandUpData
 } from './cockpit';
 
 export {

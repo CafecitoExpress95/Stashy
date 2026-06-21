@@ -36,7 +36,7 @@ export async function seedCockpitConfiguration(page: Page): Promise<void> {
 	await page.evaluate(
 		({ databaseName, ids }) =>
 			new Promise<void>((resolve, reject) => {
-				const request = indexedDB.open(databaseName, 2);
+				const request = indexedDB.open(databaseName, 3);
 				request.onerror = () => reject(request.error);
 				request.onsuccess = () => {
 					const database = request.result;

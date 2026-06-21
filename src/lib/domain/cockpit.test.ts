@@ -8,6 +8,7 @@ import {
 	createCockpitForm,
 	deriveCockpit,
 	getCockpitDraftData,
+	getCockpitStandUpData,
 	hydrateCockpitForm
 } from './cockpit';
 import { canonicalAccounts, fixtureTimestamp } from './test-fixtures';
@@ -198,5 +199,44 @@ describe('cockpit derivation', () => {
 			before.assets.map((asset) => asset.projectedFinalBalance)
 		);
 		expect(after.payments[0].remainingAccountBalanceDisplay).toBe('$0.00');
+	});
+	it('builds the exact canonical stood-up snapshot with nullable statement values', () => {
+		const form = freshForm();
+		enterAssetOpenings(form);
+		Object.assign(form.payments[0], {
+			sourceAssetAccountId: canonicalAccounts[0].id,
+			paymentMode: 'statement-balance',
+			startingAccountBalanceText: '$600.30',
+			startingStatementBalanceText: '$400.20',
+			confirmationId: 'A-100'
+		});
+		Object.assign(form.payments[1], {
+			sourceAssetAccountId: canonicalAccounts[0].id,
+			paymentMode: 'full-balance',
+			startingAccountBalanceText: '$250.00'
+		});
+		Object.assign(form.payments[2], {
+			sourceAssetAccountId: canonicalAccounts[0].id,
+			paymentMode: 'custom',
+			startingAccountBalanceText: '$25.00',
+			customPaymentAmountText: '$25.10',
+			notes: 'Intentional overpayment'
+		});
+
+		const snapshot = getCockpitStandUpData(deriveCockpit(form, canonicalAccounts, settings));
+		expect(snapshot?.session.isDraft).toBe(false);
+		expect(snapshot?.accountRecords[0].finalBalance).toBe(32_480);
+		expect(snapshot?.paymentRecords.map((payment) => payment.paymentAmount)).toEqual([
+			40_020, 25_000, 2_510
+		]);
+		expect(snapshot?.paymentRecords[1].startingStatementBalance).toBeNull();
+		expect(snapshot?.paymentRecords[1].remainingStatementBalance).toBeNull();
+		expect(snapshot?.paymentRecords[0].confirmationId).toBe('A-100');
+	});
+
+	it('does not produce a stood-up snapshot until every required value is complete', () => {
+		const form = freshForm();
+		enterAssetOpenings(form);
+		expect(getCockpitStandUpData(deriveCockpit(form, canonicalAccounts, settings))).toBeNull();
 	});
 });
