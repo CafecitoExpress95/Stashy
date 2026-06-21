@@ -475,6 +475,22 @@ Deliver the core MS-01 experience: a fast, tactile payment-planning workspace wi
 
 Make the core workflow durable in IndexedDB and define the lifecycle of a sit-down.
 
+### Phase 3 Persistence Handoff
+
+Phase 3 already introduced IndexedDB version 2 and the minimum normalized draft workflow needed for
+carry-forward user testing. It added `sessions`, `accountRecords`, and `paymentRecords` stores with
+session/account relationship indexes; an atomic explicit Save Draft upsert; stable session and child
+record IDs; strict stored-record validation; and automatic resume of the most recently updated draft.
+Draft saves preserve creation timestamps, update edit timestamps, and create no audit entries. Stand
+Up currently validates completeness but deliberately leaves the session as a draft.
+
+Phase 4 should extend this implementation rather than create a second persistence path. It still owns
+persisting `isDraft: false`, final stood-up account/payment snapshots, clear lifecycle status and
+completion UX, interrupted-write and recoverable-error behavior, migration tests beyond the Phase 3
+version-1-to-version-2 coverage, and any additional atomicity or indexes needed by archive and history
+work. Phase 4 must also decide whether explicit saving remains the only draft policy or is combined
+with visible autosave.
+
 ### Development Goals
 
 - Implement a versioned IndexedDB database and repository layer.

@@ -1,7 +1,9 @@
 # Shared Component Map
 
-This subtree contains reusable Svelte presentation for the Phase 0 shell and Phase 2 configuration.
+This subtree contains reusable Svelte presentation for the application shell, configuration, and sit-down cockpit.
 
+- `AssetProjectionPanel.svelte`: source-asset opening input, projected balance, threshold state, and prominent zero/overdraft warning.
+- `LiabilityPaymentCard.svelte`: focused liability balances, source, mode, payment result, confirmation, notes, and warning controls.
 - `AppShell.svelte`: persistent product-language navigation and application frame using the
   supplied static Stashy logo.
 - `EmptyState.svelte`: reusable launchpad/placeholder callout.
@@ -10,4 +12,4 @@ This subtree contains reusable Svelte presentation for the Phase 0 shell and Pha
 - `ThresholdDefaultsForm.svelte`: app-level default asset threshold editor.
 
 Components receive data and action callbacks. They do not open IndexedDB or own route navigation.
-Forms preserve user input after failed validation or persistence and announce errors accessibly.
+Forms preserve user input after failed validation or persistence and announce errors accessibly. Cockpit components remain presentation-only; the route owns mutable form state and the domain adapter owns calculations.

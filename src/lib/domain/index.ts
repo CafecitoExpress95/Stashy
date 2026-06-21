@@ -3,6 +3,24 @@ export { calculatePayment, calculateProjectedAssetBalances } from './calculation
 export type { AssetOpeningBalance, ProjectedAssetBalance } from './calculations';
 
 export {
+	createCockpitForm,
+	deriveCockpit,
+	getCockpitDraftData,
+	hydrateCockpitForm
+} from './cockpit';
+export type {
+	CockpitAssetForm,
+	CockpitAssetView,
+	CockpitDerivation,
+	CockpitDraftData,
+	CockpitFieldError,
+	CockpitForm,
+	CockpitIdFactory,
+	CockpitPaymentForm,
+	CockpitPaymentView
+} from './cockpit';
+
+export {
 	compareAccounts,
 	findAdjacentActiveAccount,
 	getNextAccountSortOrder,

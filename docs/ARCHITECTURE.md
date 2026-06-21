@@ -44,8 +44,8 @@ disabled defaults for a new installation, and inherited threshold policy for new
 ## IndexedDB Schema and Migrations
 
 - Database name: `stashy`.
-- Current database version: `1`.
-- Object stores use plural domain names except the singleton `appSettings` store.
+- Current IndexedDB version: `2`. The persisted `AppSettings.schemaVersion` remains `1`.
+- Object stores use plural domain names except the singleton `appSettings` store. Version 2 contains `appSettings`, `accounts`, `sessions`, `accountRecords`, and `paymentRecords`.
 - The singleton settings record uses one stable UUID for every installation.
 - Upgrade functions are ordered by target version and only perform changes introduced by that
   version.
@@ -53,3 +53,21 @@ disabled defaults for a new installation, and inherited threshold policy for new
   existing records, and add migration tests before release.
 - Persisted records are validated when read. Unsupported or corrupt data is reported and is never
   silently discarded or reset.
+
+## Phase 3 Draft Persistence Boundary
+
+Phase 3 brought forward the minimum durable workflow needed for meaningful cockpit testing:
+
+- `SitDownDraftSnapshot` stores one unfinished `Session` with flat `DraftAccountRecord` and
+  `DraftPaymentRecord` children linked by stable IDs.
+- Explicit **Save Draft** replaces that session's child-record set in one IndexedDB transaction.
+- Reload resumes the most recently updated draft and resolves account names from current account
+  configuration; it does not silently add accounts configured after the draft began.
+- Draft saves update edit timestamps, preserve creation timestamps and record IDs, and create no
+  audit entries.
+- Stand Up performs strict completeness validation in Phase 3 but does not persist a completed
+  session or change `isDraft` to `false`.
+
+Phase 4 owns completed-session persistence, final snapshot guarantees, lifecycle/status hardening,
+interrupted-write recovery, migration coverage beyond the version-1-to-version-2 draft migration,
+and any additional indexes required by archive or history queries.

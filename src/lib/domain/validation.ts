@@ -232,7 +232,8 @@ function validatePaymentRecords(
 	input: SessionValidationInput,
 	lookups: ValidationLookups,
 	missingFieldSeverity: DomainIssueSeverity,
-	hasDuplicatePayments: boolean
+	hasDuplicatePayments: boolean,
+	allowIncompleteProjection: boolean
 ): PaymentValidationOutcome {
 	const issues: DomainIssue[] = [];
 	const resolvedPayments: PaymentRecord[] = [];
@@ -252,7 +253,9 @@ function validatePaymentRecords(
 
 		const calculation = calculatePayment(record);
 		if (!calculation.ok) {
-			canBuildTrustedProjection = false;
+			if (!allowIncompleteProjection) {
+				canBuildTrustedProjection = false;
+			}
 			issues.push(
 				...calculation.errors.map((issue) => applyMissingFieldSeverity(issue, missingFieldSeverity))
 			);
@@ -318,14 +321,18 @@ function getProjectedAssetWarnings(
 function calculateTrustedProjection(
 	input: SessionValidationInput,
 	lookups: ValidationLookups,
-	paymentValidation: PaymentValidationOutcome
+	paymentValidation: PaymentValidationOutcome,
+	allowIncompleteProjection: boolean
 ): {
 	readonly projectedAssetBalances: readonly ProjectedAssetBalance[] | null;
 	readonly issues: readonly DomainIssue[];
 } {
 	const everyPaymentResolved =
 		paymentValidation.resolvedPayments.length === input.paymentRecords.length;
-	if (!paymentValidation.canBuildTrustedProjection || !everyPaymentResolved) {
+	if (
+		!paymentValidation.canBuildTrustedProjection ||
+		(!allowIncompleteProjection && !everyPaymentResolved)
+	) {
 		return { projectedAssetBalances: null, issues: [] };
 	}
 
@@ -393,7 +400,8 @@ function getPaymentWarnings(payment: PaymentRecord): DomainIssue[] {
 
 function validateSession(
 	input: SessionValidationInput,
-	missingFieldSeverity: DomainIssueSeverity
+	missingFieldSeverity: DomainIssueSeverity,
+	allowIncompleteProjection: boolean
 ): SessionValidationResult {
 	const lookups = createValidationLookups(input);
 	const duplicatePaymentIds = findDuplicatePaymentIds(input.paymentRecords);
@@ -403,9 +411,15 @@ function validateSession(
 		input,
 		lookups,
 		missingFieldSeverity,
-		duplicatePaymentIds.size > 0
+		duplicatePaymentIds.size > 0,
+		allowIncompleteProjection
 	);
-	const projection = calculateTrustedProjection(input, lookups, paymentValidation);
+	const projection = calculateTrustedProjection(
+		input,
+		lookups,
+		paymentValidation,
+		allowIncompleteProjection
+	);
 
 	// Keep a stable, human-readable order: snapshots, duplicates, payments, projection.
 	const issues = [
@@ -429,10 +443,10 @@ function validateSession(
 
 /** Validates a draft, treating calculation-critical omissions as warnings. */
 export function validateDraftSession(input: SessionValidationInput): SessionValidationResult {
-	return validateSession(input, 'warning');
+	return validateSession(input, 'warning', true);
 }
 
 /** Validates a session for stand-up, treating required omissions as errors. */
 export function validateStandUpSession(input: SessionValidationInput): SessionValidationResult {
-	return validateSession(input, 'error');
+	return validateSession(input, 'error', false);
 }

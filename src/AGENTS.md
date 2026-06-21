@@ -21,10 +21,10 @@ Read the child guide for the subtree being changed:
 - `app.html`: SvelteKit HTML template.
 - `app.css`: application-wide responsive acorn-and-cash visual foundation and form styles.
 - `app.d.ts`: global application declaration scaffold.
-- `routes/`: prerendered product shell, branded launchpad, placeholders, error recovery, and configuration orchestration.
+- `routes/`: prerendered product shell, branded launchpad, sit-down cockpit, later-phase placeholders, error recovery, and configuration orchestration.
 - `lib/index.ts`: public barrel exporting the reusable domain API.
-- `lib/components/`: shared shell and configuration presentation; read its child guide.
-- `lib/persistence/`: IndexedDB schema and configuration repository; read its child guide.
+- `lib/components/`: shared shell, configuration, and cockpit presentation; read its child guide.
+- `lib/persistence/`: IndexedDB schema plus configuration and draft repositories; read its child guide.
 
 ## Conventions
 

@@ -4,7 +4,7 @@ import { resetTestDatabase } from './database';
 
 const routes = [
 	['/', 'Make the money sit-down feel manageable.'],
-	['/sit-down/', 'The cockpit is the next stop.'],
+	['/sit-down/', 'Sit Down'],
 	['/archive/', 'Nothing to replay yet.'],
 	['/whiteboard/', 'The wider view comes after the records.'],
 	['/configuration/accounts/', 'Accounts'],

@@ -39,7 +39,9 @@ describe('session completeness validation', () => {
 			'missing-starting-account-balance',
 			'missing-starting-statement-balance'
 		]);
-		expect(result.projectedAssetBalances).toBeNull();
+		expect(result.projectedAssetBalances?.map((asset) => asset.projectedFinalBalance)).toEqual([
+			100_010, 50_000
+		]);
 	});
 
 	it('upgrades calculation-critical omissions to stand-up errors', () => {

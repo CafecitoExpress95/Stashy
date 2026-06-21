@@ -1,8 +1,12 @@
 import {
 	accountIdFromString,
+	accountRecordIdFromString,
 	appSettingsIdFromString,
 	isValidAccountSortOrder,
 	isoTimestampFromString,
+	paymentRecordIdFromString,
+	sessionIdFromString,
+	sitDownDateFromString,
 	moneyFromMinorUnits,
 	normalizeAccountName,
 	validateAccountName,
@@ -10,10 +14,14 @@ import {
 	validateAssetThresholds,
 	type Account,
 	type AppSettings,
+	type DraftAccountRecord,
+	type DraftPaymentRecord,
 	type AssetThresholdPolicy,
 	type AssetThresholds,
 	type IsoTimestamp,
-	type Money
+	type Money,
+	type PaymentMode,
+	type Session
 } from '$lib/domain';
 import { ConfigurationRepositoryError } from './configuration-repository';
 
@@ -165,4 +173,121 @@ export function parseStoredAccounts(values: readonly unknown[]): Account[] {
 		positions.add(position);
 	}
 	return accounts;
+}
+
+function readOptionalMoney(value: unknown, label: string): Money | undefined {
+	return value === undefined ? undefined : readMoney(value, label);
+}
+
+function readOptionalNullableMoney(value: unknown, label: string): Money | null | undefined {
+	return value === undefined || value === null ? value : readMoney(value, label);
+}
+
+function readNullableString(value: unknown, label: string): string | null {
+	if (value === null) return null;
+	if (typeof value !== 'string') return corrupt(`${label} must be text or null.`);
+	return value;
+}
+
+export function parseStoredSession(value: unknown): Session {
+	if (!isRecord(value)) return corrupt('Stored session must be an object.');
+	let id;
+	try {
+		id = sessionIdFromString(String(value.id));
+	} catch {
+		return corrupt('Stored session ID is invalid.');
+	}
+	let sitDownDate;
+	try {
+		sitDownDate = sitDownDateFromString(String(value.sitDownDate));
+	} catch {
+		return corrupt('Stored sit-down date is invalid.');
+	}
+	if (typeof value.isDraft !== 'boolean') {
+		return corrupt('Stored session draft state is invalid.');
+	}
+	return {
+		id,
+		sitDownDate,
+		isDraft: value.isDraft,
+		createdAt: readTimestamp(value.createdAt, 'Session createdAt'),
+		updatedAt: readTimestamp(value.updatedAt, 'Session updatedAt')
+	};
+}
+
+export function parseStoredDraftAccountRecord(value: unknown): DraftAccountRecord {
+	if (!isRecord(value)) return corrupt('Stored account record must be an object.');
+	let id;
+	let sessionId;
+	let accountId;
+	try {
+		id = accountRecordIdFromString(String(value.id));
+		sessionId = sessionIdFromString(String(value.sessionId));
+		accountId = accountIdFromString(String(value.accountId));
+	} catch {
+		return corrupt('Stored account record IDs are invalid.');
+	}
+	return {
+		id,
+		sessionId,
+		accountId,
+		openingBalance: readOptionalMoney(value.openingBalance, 'Account opening balance'),
+		finalBalance: readOptionalMoney(value.finalBalance, 'Account final balance'),
+		openingStatementBalance: readOptionalNullableMoney(
+			value.openingStatementBalance,
+			'Account opening statement balance'
+		),
+		finalStatementBalance: readOptionalNullableMoney(
+			value.finalStatementBalance,
+			'Account final statement balance'
+		),
+		createdAt: readTimestamp(value.createdAt, 'Account record createdAt'),
+		updatedAt: readTimestamp(value.updatedAt, 'Account record updatedAt')
+	};
+}
+
+export function parseStoredDraftPaymentRecord(value: unknown): DraftPaymentRecord {
+	if (!isRecord(value)) return corrupt('Stored payment record must be an object.');
+	let id;
+	let sessionId;
+	let liabilityAccountId;
+	let sourceAssetAccountId;
+	try {
+		id = paymentRecordIdFromString(String(value.id));
+		sessionId = sessionIdFromString(String(value.sessionId));
+		liabilityAccountId = accountIdFromString(String(value.liabilityAccountId));
+		sourceAssetAccountId =
+			value.sourceAssetAccountId === undefined
+				? undefined
+				: accountIdFromString(String(value.sourceAssetAccountId));
+	} catch {
+		return corrupt('Stored payment record IDs are invalid.');
+	}
+	const paymentMode = value.paymentMode as PaymentMode | undefined;
+	if (
+		paymentMode !== undefined &&
+		!['full-balance', 'statement-balance', 'custom'].includes(paymentMode)
+	) {
+		return corrupt('Stored payment mode is invalid.');
+	}
+	return {
+		id,
+		sessionId,
+		liabilityAccountId,
+		sourceAssetAccountId,
+		paymentMode,
+		customPaymentAmount: readOptionalMoney(value.customPaymentAmount, 'Custom payment amount'),
+		startingAccountBalance: readOptionalMoney(
+			value.startingAccountBalance,
+			'Starting account balance'
+		),
+		startingStatementBalance: readOptionalMoney(
+			value.startingStatementBalance,
+			'Starting statement balance'
+		),
+		confirmationId: readNullableString(value.confirmationId, 'Confirmation ID'),
+		notes: readNullableString(value.notes, 'Payment notes'),
+		createdAt: readTimestamp(value.createdAt, 'Payment record createdAt'),
+		updatedAt: readTimestamp(value.updatedAt, 'Payment record updatedAt')
+	};
 }

@@ -10,6 +10,7 @@ Read `README.md` for the domain data flow and a plain-language guide to the Type
 - `money.ts`: branded safe-integer cents, strict parsing/formatting, and guarded arithmetic.
 - `types.ts`: app settings, ordered account, session, draft/final record, and audit-entry models.
 - `configuration.ts`: account-name validation, ordering, active/archive selectors, and policy checks.
+- `cockpit.ts`: raw form initialization/hydration, exact parsing, draft record assembly, live payment views, threshold states, and save/stand-up readiness.
 - `calculations.ts`: payment resolution and source-asset projections.
 - `thresholds.ts`: threshold validation, inheritance/override resolution, and state classification.
 - `validation.ts`: draft versus stand-up completeness checks plus non-blocking financial warnings.
@@ -21,7 +22,7 @@ Read `README.md` for the domain data flow and a plain-language guide to the Type
 ## Invariants
 
 - Money is always a branded safe integer count of cents; parse decimal text without floating-point arithmetic.
-- Missing draft fields warn, while the same calculation-critical omissions block standing up.
+- Missing draft fields warn, while the same calculation-critical omissions block standing up. Complete rows still contribute to live draft projections.
 - Financially messy numeric outcomes warn without blocking; invalid references and duplicate liability payments are errors.
 - A duplicate liability payment makes the entire asset projection untrusted.
 - Full- and statement-balance modes clear the remaining statement balance; custom mode preserves signed subtraction.
