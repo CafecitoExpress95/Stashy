@@ -19,7 +19,6 @@ export type DomainIssueCode =
 	| 'negative-payment'
 	| 'payment-exceeds-account-balance'
 	| 'negative-remaining-account-balance'
-	| 'negative-remaining-statement-balance'
 	| 'negative-projected-asset-balance'
 	| 'zero-projected-asset-balance'
 	| 'invalid-threshold-order';

@@ -4,7 +4,12 @@ import {
 	paymentRecordIdFromString,
 	sessionIdFromString
 } from './identity';
-import { createCockpitForm, deriveCockpit, getCockpitDraftData } from './cockpit';
+import {
+	createCockpitForm,
+	deriveCockpit,
+	getCockpitDraftData,
+	hydrateCockpitForm
+} from './cockpit';
 import { canonicalAccounts, fixtureTimestamp } from './test-fixtures';
 import type { AppSettings } from './types';
 import { appSettingsIdFromString } from './identity';
@@ -75,6 +80,46 @@ describe('cockpit derivation', () => {
 		expect(result.payments[1].paymentAmountDisplay).toBe('—');
 		expect(result.draftValidation?.projectedAssetBalances).not.toBeNull();
 		expect(result.standUpValidation?.projectedAssetBalances).toBeNull();
+	});
+
+	it('projects full and custom payments without statement balances', () => {
+		const form = freshForm();
+		enterAssetOpenings(form);
+		Object.assign(form.payments[0], {
+			sourceAssetAccountId: canonicalAccounts[0].id,
+			paymentMode: 'full-balance',
+			startingAccountBalanceText: '$100.00'
+		});
+		Object.assign(form.payments[1], {
+			sourceAssetAccountId: canonicalAccounts[0].id,
+			paymentMode: 'custom',
+			startingAccountBalanceText: '$50.00',
+			customPaymentAmountText: '$25.00'
+		});
+
+		const result = deriveCockpit(form, canonicalAccounts, settings);
+		expect(result.assets[0].projectedFinalBalance).toBe(87_510);
+		expect(result.payments[0].remainingStatementBalanceDisplay).toBe('\u2014');
+		expect(result.payments[1].remainingStatementBalanceDisplay).toBe('\u2014');
+	});
+
+	it('hydrates an omitted statement balance without inventing zero', () => {
+		const form = freshForm();
+		enterAssetOpenings(form);
+		Object.assign(form.payments[0], {
+			sourceAssetAccountId: canonicalAccounts[0].id,
+			paymentMode: 'full-balance',
+			startingAccountBalanceText: '$100.00'
+		});
+		const derivation = deriveCockpit(form, canonicalAccounts, settings);
+		const draft = getCockpitDraftData(derivation);
+		if (!draft) throw new Error('Expected a saveable draft.');
+
+		const hydrated = hydrateCockpitForm(draft, canonicalAccounts);
+		expect(hydrated.payments[0].startingStatementBalanceText).toBe('');
+		expect(
+			deriveCockpit(hydrated, canonicalAccounts, settings).assets[0].projectedFinalBalance
+		).toBe(90_010);
 	});
 
 	it('moves a payment from its old source to its new source exactly once', () => {

@@ -29,15 +29,33 @@ describe('payment calculations', () => {
 		}
 	});
 
-	it('calculates custom payments and signed remaining balances', () => {
+	it('calculates custom payments while flooring the remaining statement balance at zero', () => {
 		const result = calculatePayment(canonicalPaymentDrafts[2]);
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.value.paymentAmount).toBe(2_510);
 			expect(result.value.remainingAccountBalance).toBe(-10);
-			expect(result.value.remainingStatementBalance).toBe(-1_510);
+			expect(result.value.remainingStatementBalance).toBe(0);
 		}
 	});
+
+	it.each([
+		[1_000, 250, 750],
+		[1_000, 1_000, 0],
+		[1_000, 1_001, 0],
+		[0, 100, 0],
+		[-100, -50, 0]
+	] as const)(
+		'floors a provided statement balance of %i after a payment of %i at %i',
+		(startingStatementBalance, customPaymentAmount, expected) => {
+			const result = calculatePayment({
+				...canonicalPaymentDrafts[2],
+				startingStatementBalance: moneyFromMinorUnits(startingStatementBalance),
+				customPaymentAmount: moneyFromMinorUnits(customPaymentAmount)
+			});
+			expect(result.ok && result.value.remainingStatementBalance).toBe(expected);
+		}
+	);
 
 	it('recalculates from the correct starting balance when the mode changes', () => {
 		const base = canonicalPaymentDrafts[0];
@@ -54,6 +72,22 @@ describe('payment calculations', () => {
 		expect(custom.ok && custom.value.paymentAmount).toBe(12_345);
 	});
 
+	it('allows full and custom payments to omit statement data', () => {
+		const full = calculatePayment({
+			...canonicalPaymentDrafts[1],
+			startingStatementBalance: undefined
+		});
+		const custom = calculatePayment({
+			...canonicalPaymentDrafts[2],
+			startingStatementBalance: undefined
+		});
+
+		expect(full.ok && full.value.startingStatementBalance).toBeNull();
+		expect(full.ok && full.value.remainingStatementBalance).toBeNull();
+		expect(custom.ok && custom.value.startingStatementBalance).toBeNull();
+		expect(custom.ok && custom.value.remainingStatementBalance).toBeNull();
+	});
+
 	it('returns explicit errors when calculation-critical fields are missing', () => {
 		const result = calculatePayment({
 			...canonicalPaymentDrafts[0],
@@ -68,7 +102,20 @@ describe('payment calculations', () => {
 			expect(result.errors.map((error) => error.code)).toEqual([
 				'missing-source-asset',
 				'missing-payment-mode',
-				'missing-starting-account-balance',
+				'missing-starting-account-balance'
+			]);
+		}
+	});
+
+	it('requires statement data only for statement-balance mode', () => {
+		const result = calculatePayment({
+			...canonicalPaymentDrafts[0],
+			startingStatementBalance: undefined
+		});
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.errors.map((error) => error.code)).toEqual([
 				'missing-starting-statement-balance'
 			]);
 		}

@@ -11,7 +11,7 @@ export type AccountHistoryPaymentDetails = {
 	readonly paymentMode: PaymentMode;
 	readonly paymentAmount: Money;
 	readonly remainingAccountBalance: Money;
-	readonly remainingStatementBalance: Money;
+	readonly remainingStatementBalance: Money | null;
 	readonly confirmationId: string | null;
 	readonly notes: string | null;
 };

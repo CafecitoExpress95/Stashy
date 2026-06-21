@@ -97,6 +97,27 @@ describe('account history selector', () => {
 		expect(history[1].payment).toBeNull();
 	});
 
+	it('preserves unavailable statement details as null in history', () => {
+		const paymentResult = calculatePayment({
+			...canonicalPaymentDrafts[1],
+			startingStatementBalance: undefined
+		});
+		if (!paymentResult.ok) throw new Error('Expected full payment to calculate.');
+		const record = liabilityRecord('000000000011', canonicalSession.id, 25_000, 0, 0, 0);
+
+		const history = selectAccountHistory({
+			accountId: fixtureIds.cardB,
+			accounts: canonicalAccounts,
+			sessions: [canonicalSession],
+			accountRecords: [{ ...record, accountId: fixtureIds.cardB }],
+			paymentRecords: [paymentResult.value]
+		});
+
+		expect(history[0].payment).toEqual(
+			expect.objectContaining({ remainingStatementBalance: null })
+		);
+	});
+
 	it('sorts same-date snapshots by session creation time and then ID', () => {
 		const firstCreated = {
 			...canonicalSession,

@@ -2,7 +2,7 @@
 import type { AccountId } from './identity';
 import { createIssue, type DomainIssue, type DomainResult } from './issues';
 import { subtractMoney, ZERO_MONEY, type Money } from './money';
-import type { DraftPaymentRecord, PaymentMode, PaymentRecord } from './types';
+import type { DraftPaymentRecord, PaymentRecord } from './types';
 
 /** The user-entered opening balance for an asset in the current sit-down. */
 export type AssetOpeningBalance = {
@@ -18,7 +18,12 @@ export type ProjectedAssetBalance = AssetOpeningBalance & {
 type CalculationReadyPayment =
 	| (DraftPaymentRecord & {
 			readonly sourceAssetAccountId: AccountId;
-			readonly paymentMode: Exclude<PaymentMode, 'custom'>;
+			readonly paymentMode: 'full-balance';
+			readonly startingAccountBalance: Money;
+	  })
+	| (DraftPaymentRecord & {
+			readonly sourceAssetAccountId: AccountId;
+			readonly paymentMode: 'statement-balance';
 			readonly startingAccountBalance: Money;
 			readonly startingStatementBalance: Money;
 	  })
@@ -27,7 +32,6 @@ type CalculationReadyPayment =
 			readonly paymentMode: 'custom';
 			readonly customPaymentAmount: Money;
 			readonly startingAccountBalance: Money;
-			readonly startingStatementBalance: Money;
 	  });
 
 function getPaymentCompletenessErrors(record: DraftPaymentRecord): DomainIssue[] {
@@ -75,7 +79,7 @@ function getPaymentCompletenessErrors(record: DraftPaymentRecord): DomainIssue[]
 		);
 	}
 
-	if (record.startingStatementBalance === undefined) {
+	if (record.paymentMode === 'statement-balance' && record.startingStatementBalance === undefined) {
 		errors.push(
 			createIssue(
 				'error',
@@ -110,6 +114,16 @@ function resolvePaymentAmount(record: CalculationReadyPayment): Money {
 }
 
 function buildPaymentRecord(record: CalculationReadyPayment, paymentAmount: Money): PaymentRecord {
+	const startingStatementBalance = record.startingStatementBalance ?? null;
+	const statementDifference =
+		startingStatementBalance === null
+			? null
+			: subtractMoney(startingStatementBalance, paymentAmount);
+	const remainingStatementBalance =
+		statementDifference === null || statementDifference > ZERO_MONEY
+			? statementDifference
+			: ZERO_MONEY;
+
 	return {
 		id: record.id,
 		createdAt: record.createdAt,
@@ -120,14 +134,9 @@ function buildPaymentRecord(record: CalculationReadyPayment, paymentAmount: Mone
 		paymentMode: record.paymentMode,
 		paymentAmount,
 		startingAccountBalance: record.startingAccountBalance,
-		startingStatementBalance: record.startingStatementBalance,
+		startingStatementBalance,
 		remainingAccountBalance: subtractMoney(record.startingAccountBalance, paymentAmount),
-		// Full and statement modes represent satisfying the selected statement amount.
-		// Custom mode preserves signed subtraction so overpayments remain visible.
-		remainingStatementBalance:
-			record.paymentMode === 'custom'
-				? subtractMoney(record.startingStatementBalance, paymentAmount)
-				: ZERO_MONEY,
+		remainingStatementBalance,
 		confirmationId: record.confirmationId,
 		notes: record.notes
 	};

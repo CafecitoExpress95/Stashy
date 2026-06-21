@@ -60,7 +60,7 @@ test('canonical scenario calculates immediately and survives explicit draft save
 	await expect(cardA.getByText('$200.10', { exact: true })).toBeVisible();
 	const cardC = liabilityCard(page, 'Card C');
 	await expect(cardC.getByText('-$0.10', { exact: true })).toBeVisible();
-	await expect(cardC.getByText('-$15.10', { exact: true })).toBeVisible();
+	await expect(cardC.getByText('$0.00', { exact: true })).toBeVisible();
 	await expect(cardC.getByText('Payment exceeds the starting account balance.')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Save Draft' }).click();
@@ -70,6 +70,39 @@ test('canonical scenario calculates immediately and survives explicit draft save
 	await expect(assetCard(page, 'Checking').getByLabel('Opening balance')).toHaveValue('$1,000.10');
 	await expect(liabilityCard(page, 'Card C').getByLabel('Payment amount')).toHaveValue('$25.10');
 	await expect(assetCard(page, 'Checking').getByText('$324.80', { exact: true })).toBeVisible();
+});
+
+test('full and custom payments remain live and stand-up ready without statement balances', async ({
+	page
+}) => {
+	await enterCanonicalScenario(page);
+	const cardB = liabilityCard(page, 'Card B');
+	const cardC = liabilityCard(page, 'Card C');
+	await cardB.getByLabel('Statement balance').fill('');
+	await cardC.getByLabel('Statement balance').fill('');
+
+	await expect(assetCard(page, 'Checking').getByText('$324.80', { exact: true })).toBeVisible();
+	await expect(cardB.locator('.remaining-statement strong')).toHaveText('\u2014');
+	await expect(cardC.locator('.remaining-statement strong')).toHaveText('\u2014');
+	await page.getByRole('button', { name: 'Stand Up' }).click();
+	await expect(page.getByText('Ready to stand up', { exact: true })).toBeVisible();
+
+	await page.getByRole('button', { name: 'Save Draft' }).click();
+	await page.reload();
+	await expect(liabilityCard(page, 'Card B').getByLabel('Statement balance')).toHaveValue('');
+	await expect(liabilityCard(page, 'Card C').getByLabel('Statement balance')).toHaveValue('');
+});
+
+test('statement mode requires its statement balance and focuses the missing field', async ({
+	page
+}) => {
+	await enterCanonicalScenario(page);
+	const cardA = liabilityCard(page, 'Card A');
+	await cardA.getByLabel('Statement balance').fill('');
+	await page.getByRole('button', { name: 'Stand Up' }).click();
+
+	await expect(cardA.getByLabel('Statement balance')).toBeFocused();
+	await expect(cardA.getByText('Enter the statement balance.')).toBeVisible();
 });
 
 test('mode and source changes move projections without stale or duplicate subtraction', async ({
@@ -125,6 +158,23 @@ test('mobile keeps projections and actions reachable without horizontal overflow
 	await page.setViewportSize({ width: 375, height: 812 });
 	await page.reload();
 	await expect(page.getByRole('heading', { name: 'Source assets' })).toBeVisible();
+	await assetCard(page, 'Checking').getByLabel('Opening balance').fill('$100.00');
+	const card = liabilityCard(page, 'Card A');
+	await card.getByLabel('Account balance').fill('$50.00');
+	await card.getByLabel('Pay from').selectOption(cockpitAccountIds.checking);
+	await card.getByLabel('Full balance').check();
+	await liabilityCard(page, 'Card C').scrollIntoViewIfNeeded();
+
+	const dock = page.getByRole('complementary', { name: 'Live asset projections' });
+	await expect(dock).toBeVisible();
+	await expect(dock.getByText('$50.00', { exact: true })).toBeVisible();
+	const dockPosition = await dock.evaluate((element) => ({
+		position: getComputedStyle(element).position,
+		top: element.getBoundingClientRect().top
+	}));
+	expect(dockPosition.position).toBe('sticky');
+	expect(dockPosition.top).toBeGreaterThanOrEqual(0);
+	expect(dockPosition.top).toBeLessThan(24);
 	await expect(page.getByRole('button', { name: 'Save Draft' })).toBeVisible();
 	const dimensions = await page.evaluate(() => ({
 		scrollWidth: document.documentElement.scrollWidth,

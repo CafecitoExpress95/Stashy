@@ -25,7 +25,7 @@ Read `README.md` for the domain data flow and a plain-language guide to the Type
 - Missing draft fields warn, while the same calculation-critical omissions block standing up. Complete rows still contribute to live draft projections.
 - Financially messy numeric outcomes warn without blocking; invalid references and duplicate liability payments are errors.
 - A duplicate liability payment makes the entire asset projection untrusted.
-- Full- and statement-balance modes clear the remaining statement balance; custom mode preserves signed subtraction.
+- Statement balances are optional except for Statement payment mode. Resolved omitted values are null, and provided remaining statement balances floor at zero; only account balances remain signed.
 - Threshold boundaries are strict `below` checks: warning equality is healthy and danger equality is warning.
 - History comes only from saved `AccountRecord` snapshots joined to non-draft sessions; never infer transactions.
 - Account names are normalized and globally unique; `sortOrder` is a non-negative position scoped by account type.

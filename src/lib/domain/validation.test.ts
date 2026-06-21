@@ -36,11 +36,24 @@ describe('session completeness validation', () => {
 		expect(result.warnings.map((issue) => issue.code)).toEqual([
 			'missing-source-asset',
 			'missing-payment-mode',
-			'missing-starting-account-balance',
-			'missing-starting-statement-balance'
+			'missing-starting-account-balance'
 		]);
 		expect(result.projectedAssetBalances?.map((asset) => asset.projectedFinalBalance)).toEqual([
 			100_010, 50_000
+		]);
+	});
+
+	it('requires statement data at stand-up only when statement mode is selected', () => {
+		const result = validateStandUpSession({
+			session: canonicalSession,
+			accounts: canonicalAccounts,
+			accountRecords: canonicalAccountRecords,
+			paymentRecords: [{ ...canonicalPaymentDrafts[0], startingStatementBalance: undefined }]
+		});
+
+		expect(result.isValid).toBe(false);
+		expect(result.errors.map((issue) => issue.code)).toEqual([
+			'missing-starting-statement-balance'
 		]);
 	});
 
@@ -138,8 +151,7 @@ describe('financial warnings', () => {
 		expect(result.errors).toHaveLength(0);
 		expect(result.warnings.map((issue) => issue.code)).toEqual([
 			'payment-exceeds-account-balance',
-			'negative-remaining-account-balance',
-			'negative-remaining-statement-balance'
+			'negative-remaining-account-balance'
 		]);
 		expect(result.projectedAssetBalances?.map((asset) => asset.projectedFinalBalance)).toEqual([
 			32_480, 50_000

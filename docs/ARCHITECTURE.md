@@ -21,7 +21,9 @@ The ten proposed decisions in the roadmap are approved:
 10. Archive provides newest-first listing and full replay; advanced search is deferred.
 
 Phase 2 additionally fixes manual account ordering, globally unique case-insensitive account names,
-disabled defaults for a new installation, and inherited threshold policy for new assets.
+disabled defaults for a new installation, and inherited threshold policy for new assets. Phase 3
+allows statement balances to be omitted except for Statement payment mode; resolved payment snapshots
+store nullable statement values and floor present remaining statement balances at $0.00.
 
 ## Deployment Assumptions
 
@@ -65,6 +67,9 @@ Phase 3 brought forward the minimum durable workflow needed for meaningful cockp
   configuration; it does not silently add accounts configured after the draft began.
 - Draft saves update edit timestamps, preserve creation timestamps and record IDs, and create no
   audit entries.
+- Blank statement balances remain absent in draft records. Full and custom payments can still resolve,
+  while Statement payment mode requires a value. Completed payment snapshots use nullable statement
+  values and never store a negative remaining statement balance.
 - Stand Up performs strict completeness validation in Phase 3 but does not persist a completed
   session or change `isDraft` to `false`.
 

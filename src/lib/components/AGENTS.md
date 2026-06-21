@@ -3,6 +3,7 @@
 This subtree contains reusable Svelte presentation for the application shell, configuration, and sit-down cockpit.
 
 - `AssetProjectionPanel.svelte`: source-asset opening input, projected balance, threshold state, and prominent zero/overdraft warning.
+- `AssetProjectionDock.svelte`: compact sticky projected balances and risk states for stacked/mobile cockpit layouts.
 - `LiabilityPaymentCard.svelte`: focused liability balances, source, mode, payment result, confirmation, notes, and warning controls.
 - `AppShell.svelte`: persistent product-language navigation and application frame using the
   supplied static Stashy logo.

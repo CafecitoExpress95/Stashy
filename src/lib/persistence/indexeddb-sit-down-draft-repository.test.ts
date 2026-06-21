@@ -147,8 +147,13 @@ describe('draft persistence', () => {
 		const reloaded = await new IndexedDbSitDownDraftRepository({ factory }).loadLatestDraft();
 		expect(reloaded).toEqual(saved);
 		expect(reloaded?.paymentRecords[0]).toEqual(
-			expect.objectContaining({ sourceAssetAccountId: undefined, paymentMode: undefined })
+			expect.objectContaining({
+				sourceAssetAccountId: undefined,
+				paymentMode: undefined,
+				startingStatementBalance: undefined
+			})
 		);
+		expect(reloaded?.accountRecords[1].openingStatementBalance).toBeUndefined();
 	});
 
 	it('upserts the same IDs without creating duplicate child records', async () => {

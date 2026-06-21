@@ -384,16 +384,6 @@ function getPaymentWarnings(payment: PaymentRecord): DomainIssue[] {
 			)
 		);
 	}
-	if (payment.remainingStatementBalance < ZERO_MONEY) {
-		warnings.push(
-			createIssue(
-				'warning',
-				'negative-remaining-statement-balance',
-				'Remaining statement balance is below $0.00.',
-				{ entityId: payment.id, field: 'remainingStatementBalance' }
-			)
-		);
-	}
 
 	return warnings;
 }

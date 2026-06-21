@@ -30,8 +30,7 @@
 			[
 				'negative-payment',
 				'payment-exceeds-account-balance',
-				'negative-remaining-account-balance',
-				'negative-remaining-statement-balance'
+				'negative-remaining-account-balance'
 			].includes(issue.code)
 		)
 	);
@@ -66,7 +65,7 @@
 			{/if}
 		</label>
 		<label for="payment-{form.paymentId}-startingStatementBalance">
-			<span>Statement balance</span>
+			<span>Statement balance <small>optional</small></span>
 			<input
 				id="payment-{form.paymentId}-startingStatementBalance"
 				type="text"
@@ -77,6 +76,8 @@
 			/>
 			{#if fieldError('startingStatementBalance')}
 				<small class="field-error">{fieldError('startingStatementBalance')}</small>
+			{:else}
+				<small>Required only when using Statement payment mode.</small>
 			{/if}
 		</label>
 	</div>

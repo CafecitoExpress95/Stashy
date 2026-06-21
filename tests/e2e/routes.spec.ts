@@ -20,6 +20,14 @@ test('every top-level route supports direct navigation and refresh', async ({ pa
 	}
 });
 
+test('the homepage promotes the completed sit-down cockpit', async ({ page }) => {
+	await page.goto('/');
+	const sitDownCard = page.getByRole('link', { name: /Sit Down/ });
+	await expect(sitDownCard.getByText('Ready now')).toBeVisible();
+	await expect(sitDownCard.getByText('Start a sit-down ->')).toBeVisible();
+	await expect(sitDownCard.getByText('Coming in Phase 3')).toHaveCount(0);
+});
+
 test('the product shell uses approved navigation language', async ({ page }) => {
 	await page.goto('/');
 	const navigation = page.getByRole('navigation', { name: 'Primary navigation' });

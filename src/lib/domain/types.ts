@@ -108,9 +108,9 @@ export type PaymentRecord = PaymentRecordDetails & {
 	readonly paymentMode: PaymentMode;
 	readonly paymentAmount: Money;
 	readonly startingAccountBalance: Money;
-	readonly startingStatementBalance: Money;
+	readonly startingStatementBalance: Money | null;
 	readonly remainingAccountBalance: Money;
-	readonly remainingStatementBalance: Money;
+	readonly remainingStatementBalance: Money | null;
 };
 
 type AccountRecordDetails = RecordTimestamps & {

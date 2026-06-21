@@ -416,7 +416,9 @@ export function deriveCockpit(
 				? formatMoney(resolvedPayment.remainingAccountBalance)
 				: '—',
 			remainingStatementBalanceDisplay: resolvedPayment
-				? formatMoney(resolvedPayment.remainingStatementBalance)
+				? resolvedPayment.remainingStatementBalance === null
+					? '\u2014'
+					: formatMoney(resolvedPayment.remainingStatementBalance)
 				: '—',
 			issues:
 				draftValidation?.warnings.filter((issue) => issueMatches(issue, payment.paymentId)) ?? []
@@ -441,7 +443,10 @@ export function deriveCockpit(
 		if (!payment.startingAccountBalanceText.trim()) {
 			standUpControls.push(paymentControlId(payment.paymentId, 'startingAccountBalance'));
 		}
-		if (!payment.startingStatementBalanceText.trim()) {
+		if (
+			payment.paymentMode === 'statement-balance' &&
+			!payment.startingStatementBalanceText.trim()
+		) {
 			standUpControls.push(paymentControlId(payment.paymentId, 'startingStatementBalance'));
 		}
 		if (!payment.paymentMode) {

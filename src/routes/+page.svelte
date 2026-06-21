@@ -9,8 +9,8 @@
 		<p class="eyebrow">Your payment workspace</p>
 		<h1>Make the money sit-down feel manageable.</h1>
 		<p>
-			Configure the accounts you use today. The guided sit-down, archive, and Whiteboard will join
-			this workspace as MS-01 grows.
+			Set up your accounts, then use the live payment cockpit to plan a sit-down without losing
+			sight of the money available in each source asset.
 		</p>
 	</div>
 	<img
@@ -24,6 +24,12 @@
 </section>
 
 <div class="launch-grid" aria-label="Stashy areas">
+	<a class="launch-card panel" href={resolve('/sit-down/')}>
+		<p class="eyebrow">Ready now</p>
+		<h2>Sit Down</h2>
+		<p>Enter balances, plan payments, save a draft, and watch source assets update immediately.</p>
+		<span class="card-kicker">Start a sit-down -&gt;</span>
+	</a>
 	<a class="launch-card panel" href={resolve('/configuration/accounts/')}>
 		<p class="eyebrow">Ready now</p>
 		<h2>Set up your accounts</h2>
@@ -32,12 +38,6 @@
 			you.
 		</p>
 		<span class="card-kicker">Open accounts -></span>
-	</a>
-	<a class="launch-card panel" href={resolve('/sit-down/')}>
-		<p class="eyebrow">Coming in Phase 3</p>
-		<h2>Sit Down</h2>
-		<p>Enter balances, plan payments, and watch source assets update immediately.</p>
-		<span class="card-kicker">Preview area -></span>
 	</a>
 	<a class="launch-card panel" href={resolve('/archive/')}>
 		<p class="eyebrow">Coming later</p>

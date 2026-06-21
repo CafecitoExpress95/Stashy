@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
+	import AssetProjectionDock from '$lib/components/AssetProjectionDock.svelte';
 	import AssetProjectionPanel from '$lib/components/AssetProjectionPanel.svelte';
 	import LiabilityPaymentCard from '$lib/components/LiabilityPaymentCard.svelte';
 	import {
@@ -181,7 +182,11 @@
 		if (field === 'startingAccountBalance' && !payment.startingAccountBalanceText.trim()) {
 			return 'Enter the account balance.';
 		}
-		if (field === 'startingStatementBalance' && !payment.startingStatementBalanceText.trim()) {
+		if (
+			field === 'startingStatementBalance' &&
+			payment.paymentMode === 'statement-balance' &&
+			!payment.startingStatementBalanceText.trim()
+		) {
 			return 'Enter the statement balance.';
 		}
 		if (
@@ -311,6 +316,14 @@
 				{/each}
 			</div>
 		</aside>
+
+		<AssetProjectionDock
+			assets={form.assets.flatMap((asset) => {
+				const account = accounts.find((candidate) => candidate.id === asset.accountId);
+				const view = derivation.assets.find((candidate) => candidate.accountId === asset.accountId);
+				return account?.type === 'asset' && view ? [{ account, view }] : [];
+			})}
+		/>
 
 		<section class="liability-stack" aria-labelledby="payments-title">
 			<div class="stack-heading">

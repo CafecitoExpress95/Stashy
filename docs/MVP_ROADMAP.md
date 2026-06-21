@@ -232,7 +232,7 @@ The following reusable scenario should be encoded as automated fixtures and repe
 - Card A remaining statement balance is `$0.00`.
 - Card B remaining account and statement balances are `$0.00`.
 - Card C remaining account balance is `-$0.10`.
-- Card C remaining statement balance is `-$15.10`.
+- Card C remaining statement balance is `$0.00`; statement remainders floor at zero.
 - Card C displays non-blocking overpayment/negative-balance warnings.
 - Saving remains unaffected.
 
@@ -315,13 +315,13 @@ Build the trustworthy calculation and data foundation that every later screen wi
   - Statement-balance payment.
   - Custom payment.
   - Remaining account balance.
-  - Remaining statement balance.
+  - Remaining statement balance when supplied, floored at $0.00.
   - Projected final asset balance across multiple payments.
   - Asset threshold state.
 - Implement non-blocking validation results for:
   - Negative and zero projected asset balances.
   - Liability overpayment.
-  - Negative remaining account or statement balance.
+  - Negative remaining account balance.
   - Missing source asset.
   - Invalid or missing required balances.
   - Duplicate payment records for the same liability in one session.
@@ -343,7 +343,7 @@ Build the trustworthy calculation and data foundation that every later screen wi
 ### Anthony Test Instructions
 
 1. Review the field names and model examples for plain-language accuracy.
-2. Confirm that "account balance," "statement balance," and both remaining balances mean what they do in the real workflow.
+2. Confirm that account balances remain signed, statement balances are optional, and remaining statement balances floor at $0.00.
 3. Review warning messages for financial usefulness without legalistic or alarmist wording.
 4. Confirm that the threshold behavior matches the mental model used during a sit-down.
 
@@ -414,12 +414,12 @@ Deliver the core MS-01 experience: a fast, tactile payment-planning workspace wi
 - Show active asset accounts with editable opening balances and live projected final balances.
 - Show active liability accounts with:
   - Starting account balance.
-  - Starting statement balance.
+  - Optional starting statement balance, required only for Statement payment mode.
   - Source asset selector.
   - Full-balance, statement-balance, and custom payment modes.
   - Payment amount.
   - Remaining account balance.
-  - Remaining statement balance.
+  - Remaining statement balance when supplied, floored at $0.00.
   - Confirmation ID.
   - Notes.
 - Make each liability row or card a focused payment interaction rather than a spreadsheet clone.
@@ -430,9 +430,10 @@ Deliver the core MS-01 experience: a fast, tactile payment-planning workspace wi
   - Projected asset balance below zero.
   - Projected asset balance equal to zero.
   - Liability overpayment.
-  - Negative remaining balances.
+  - Negative remaining account balances.
   - Other messy but saveable states defined in Phase 1.
 - Ensure changing the source asset moves the payment projection from the old asset to the new one exactly once.
+- Keep compact projected asset balances and risk states sticky while liability cards scroll at stacked/mobile widths.
 - Preserve unsaved in-page state while navigating among controls.
 - Provide explicit Draft and Stand Up actions, even before their persistence behavior is completed in Phase 4.
 - Protect against accidental double submission.
@@ -447,7 +448,7 @@ Deliver the core MS-01 experience: a fast, tactile payment-planning workspace wi
 6. Enter and edit confirmation IDs and notes without changing money calculations.
 7. Verify every form control has an accessible name and usable keyboard focus.
 8. Verify rapid edits do not create stale or duplicated calculations.
-9. Test at desktop and mobile viewport widths for clipped inputs or unreachable actions.
+9. Test at desktop and mobile viewport widths for clipped inputs, unreachable actions, and an always-visible sticky asset summary while liability cards scroll.
 10. Run the standard quality gate.
 
 ### Anthony Test Instructions
@@ -481,7 +482,9 @@ Phase 3 already introduced IndexedDB version 2 and the minimum normalized draft 
 carry-forward user testing. It added `sessions`, `accountRecords`, and `paymentRecords` stores with
 session/account relationship indexes; an atomic explicit Save Draft upsert; stable session and child
 record IDs; strict stored-record validation; and automatic resume of the most recently updated draft.
-Draft saves preserve creation timestamps, update edit timestamps, and create no audit entries. Stand
+Draft saves preserve creation timestamps, update edit timestamps, and create no audit entries. Omitted
+statement balances remain absent in draft records; resolved Phase 4 payment snapshots must store starting
+and remaining statement balances as nullable values, with present remaining values floored at $0.00. Stand
 Up currently validates completeness but deliberately leaves the session as a draft.
 
 Phase 4 should extend this implementation rather than create a second persistence path. It still owns
@@ -767,7 +770,7 @@ This is the release-candidate exercise. It should be run only after all phase ex
 2. Set app defaults and at least one per-account threshold override.
 3. Begin a dated sit-down.
 4. Enter all opening asset balances.
-5. Enter all liability account and statement balances.
+5. Enter every liability account balance; leave at least one statement balance blank and provide one for Statement payment mode.
 6. Use each payment mode at least once.
 7. Change a payment's source asset after entering it.
 8. Trigger warning, danger, zero, negative, and overpayment states.

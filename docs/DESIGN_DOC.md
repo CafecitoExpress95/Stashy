@@ -94,18 +94,18 @@ The way I would like to work in Stashy is:
 
 1. Set the date of the sit down
 2. Update the opening balance of the asset accounts
-3. Update the liability accounts for their account balance AND statement balance
+3. Update each liability's account balance and, when useful, its optional statement balance. A statement balance is required only when using Statement payment mode.
 4. For each liability account, select the source asset account payment is coming from
 5. Have a place to put the payment amount as "full balance", "statement balance", or "custom"
    1. Full Balance - Sets the payment amount to the account balance
    2. Statement Balance - Sets the payment amount to the statement balance
    3. Custom - Sets the payment amount to whatever the user put in the payment amount box
-6. Track both remaining account balance and remaining statement balance
+6. Track the signed remaining account balance. When a statement balance is supplied, track its remaining balance with a floor of $0.00; when omitted, show the statement result as unavailable.
 7. The balance of the corresponding source asset account live updates visually
    1. The balance changes colors based on the thresholds set in that accounts settings (e.g. I can set my checking to go orange under \$200 and red under \$100, but could be green over \$500, etc.). User could also not set any if they want.
    2. Pending payments hit the source asset balance immediately because that is how I need to think about the money during the sit-down.
    3. Thresholds are passive visual cues, not blockers.
-8. Warn about negative, zero, and overpayment states, but do not block the user because messiness happens.
+8. Warn about negative or zero projected assets, negative remaining account balances, and overpayments, but do not block the user because messiness happens. Remaining statement balances do not go below $0.00.
 9. Input the confirmation ID (if applicable)
 10. Update notes (if any)
 11. Save as a draft if the sit-down is not ready to stand up yet
@@ -192,9 +192,9 @@ The rough shape should look something like this:
   - Payment Mode
   - Payment Amount
   - Starting Account Balance
-  - Starting Statement Balance
+  - Starting Statement Balance (nullable)
   - Remaining Account Balance
-  - Remaining Statement Balance
+  - Remaining Statement Balance (nullable; floors at $0.00 when present)
   - Confirmation ID
   - Notes
 - Account Record
