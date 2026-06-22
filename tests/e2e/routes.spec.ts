@@ -6,7 +6,7 @@ const routes = [
 	['/', 'Make the money sit-down feel manageable.'],
 	['/sit-down/', 'Sit Down'],
 	['/archive/', 'Check Archive'],
-	['/whiteboard/', 'The wider view comes after the records.'],
+	['/whiteboard/', 'Visit Whiteboard'],
 	['/configuration/accounts/', 'Accounts'],
 	['/configuration/data/', 'Backups arrive before the real-data trial.']
 ] as const;
@@ -29,6 +29,9 @@ test('the homepage promotes the completed sit-down cockpit', async ({ page }) =>
 	const archiveCard = page.getByRole('link', { name: /Check Archive/ });
 	await expect(archiveCard.getByText('Ready now')).toBeVisible();
 	await expect(archiveCard.getByText('Open Archive ->')).toBeVisible();
+	const whiteboardCard = page.getByRole('link', { name: /Visit Whiteboard/ });
+	await expect(whiteboardCard.getByText('Ready now')).toBeVisible();
+	await expect(whiteboardCard.getByText('Open Whiteboard ->')).toBeVisible();
 });
 
 test('the product shell uses approved navigation language', async ({ page }) => {

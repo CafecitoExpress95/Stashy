@@ -33,6 +33,7 @@ const expectedRuntimeExports = [
 	'resolveAssetThresholds',
 	'selectAccountHistory',
 	'selectArchiveSessionSummaries',
+	'selectLatestStoodUpState',
 	'selectActiveAccounts',
 	'selectArchivedAccounts',
 	'sessionIdFromString',

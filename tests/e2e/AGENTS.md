@@ -7,5 +7,6 @@ This subtree owns Playwright coverage for the prerendered MS-01 application.
 - `configuration.spec.ts` covers persisted account and threshold workflows, ordering, archive safety, validation, and keyboard operation.
 - `cockpit.spec.ts` covers exact projections, debounced autosave, manual draft saving, invalid-input preservation, confirmed Stand Up, durable receipts, new-session creation, failed-write messaging, Axe, mobile overflow, and sticky asset visibility.
 - `archive.spec.ts` covers newest-first summaries, draft/completed replay, explicit audited corrections, later-session isolation, current renamed/archived account resolution, missing links, Axe, and mobile overflow.
+- `whiteboard.spec.ts` covers latest stood-up state, draft exclusion, exact Chart.js/table history, threshold labels, chart and keyboard detail selection, sparse/same-date/archived accounts, Archive links, Axe, and mobile overflow.
 
 Tests use fabricated data only. Prefer role and label locators that match the product language users see.

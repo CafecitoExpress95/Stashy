@@ -1,9 +1,16 @@
 /** Read-only projections that turn saved snapshots into account history. */
 import type { AccountId, IsoTimestamp, SessionId, SitDownDate } from './identity';
 import { sumMoney, type Money } from './money';
+import {
+	getAssetThresholdState,
+	resolveAssetThresholds,
+	type AssetThresholdState
+} from './thresholds';
 import type {
 	Account,
 	AccountRecord,
+	AppSettings,
+	AssetThresholds,
 	DraftPaymentRecord,
 	PaymentMode,
 	PaymentRecord,
@@ -145,6 +152,127 @@ export function selectAccountHistory(
 	}
 
 	return datapoints.sort(compareHistoryDatapoints);
+}
+
+/** Current asset state shown in the latest stood-up Whiteboard snapshot. */
+export type WhiteboardAssetState = {
+	readonly accountId: AccountId;
+	readonly accountRecordId: AccountRecord['id'];
+	readonly accountName: string;
+	readonly archived: boolean;
+	readonly openingBalance: Money;
+	readonly finalBalance: Money;
+	readonly thresholds: AssetThresholds | null;
+	readonly thresholdState: AssetThresholdState;
+};
+
+/** Current liability state shown in the latest stood-up Whiteboard snapshot. */
+export type WhiteboardLiabilityState = {
+	readonly accountId: AccountId;
+	readonly accountRecordId: AccountRecord['id'];
+	readonly accountName: string;
+	readonly archived: boolean;
+	readonly openingBalance: Money;
+	readonly finalBalance: Money;
+	readonly openingStatementBalance: Money | null;
+	readonly finalStatementBalance: Money | null;
+};
+
+/** Exact account snapshots from the newest completed sit-down. */
+export type WhiteboardLatestState = {
+	readonly sessionId: SessionId;
+	readonly sitDownDate: SitDownDate;
+	readonly sessionCreatedAt: IsoTimestamp;
+	readonly assets: readonly WhiteboardAssetState[];
+	readonly liabilities: readonly WhiteboardLiabilityState[];
+};
+
+/** Flat saved data used to select the latest completed Whiteboard state. */
+export type WhiteboardLatestStateInput = {
+	readonly settings: AppSettings;
+	readonly accounts: readonly Account[];
+	readonly sessions: readonly Session[];
+	readonly accountRecords: readonly AccountRecord[];
+};
+
+function compareSessionsNewestFirst(left: Session, right: Session): number {
+	return (
+		right.sitDownDate.localeCompare(left.sitDownDate) ||
+		right.createdAt.localeCompare(left.createdAt) ||
+		right.id.localeCompare(left.id)
+	);
+}
+
+/**
+ * Selects only the newest stood-up snapshot. Missing accounts are not filled
+ * from older sessions, and current account names, archive state, and threshold
+ * settings are applied without rewriting the saved balances.
+ */
+export function selectLatestStoodUpState(
+	input: WhiteboardLatestStateInput
+): WhiteboardLatestState | null {
+	const session = [...input.sessions]
+		.filter((candidate) => !candidate.isDraft)
+		.sort(compareSessionsNewestFirst)[0];
+	if (!session) return null;
+
+	const recordsByAccountId = new Map(
+		input.accountRecords
+			.filter((record) => record.sessionId === session.id)
+			.map((record) => [record.accountId, record])
+	);
+	const orderedAccounts = [...input.accounts].sort(
+		(left, right) =>
+			left.type.localeCompare(right.type) ||
+			left.sortOrder - right.sortOrder ||
+			left.createdAt.localeCompare(right.createdAt) ||
+			left.id.localeCompare(right.id)
+	);
+	const assets: WhiteboardAssetState[] = [];
+	const liabilities: WhiteboardLiabilityState[] = [];
+
+	for (const account of orderedAccounts) {
+		const record = recordsByAccountId.get(account.id);
+		if (!record) continue;
+
+		if (account.type === 'asset') {
+			const resolved = resolveAssetThresholds(
+				input.settings.defaultAssetThresholds,
+				account.thresholdPolicy
+			);
+			const thresholds = resolved.ok ? resolved.value : null;
+			assets.push({
+				accountId: account.id,
+				accountRecordId: record.id,
+				accountName: account.name,
+				archived: account.archived,
+				openingBalance: record.openingBalance,
+				finalBalance: record.finalBalance,
+				thresholds,
+				thresholdState: getAssetThresholdState(record.finalBalance, thresholds)
+			});
+			continue;
+		}
+
+		liabilities.push({
+			accountId: account.id,
+			accountRecordId: record.id,
+			accountName: account.name,
+			archived: account.archived,
+			openingBalance: record.openingBalance,
+			finalBalance: record.finalBalance,
+			openingStatementBalance: record.openingStatementBalance,
+			finalStatementBalance: record.finalStatementBalance
+		});
+	}
+
+	return {
+		sessionId: session.id,
+		sitDownDate: session.sitDownDate,
+		sessionCreatedAt: session.createdAt,
+		assets,
+		liabilities
+	};
 }
 
 /** Minimum saved-session shape needed to build the Archive list. */

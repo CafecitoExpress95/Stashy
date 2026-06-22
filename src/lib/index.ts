@@ -30,6 +30,7 @@ export {
 	resolveAssetThresholds,
 	selectAccountHistory,
 	selectArchiveSessionSummaries,
+	selectLatestStoodUpState,
 	selectActiveAccounts,
 	selectArchivedAccounts,
 	sessionIdFromString,
@@ -102,5 +103,9 @@ export type {
 	SessionId,
 	SessionValidationInput,
 	SessionValidationResult,
-	SitDownDate
+	SitDownDate,
+	WhiteboardAssetState,
+	WhiteboardLatestState,
+	WhiteboardLatestStateInput,
+	WhiteboardLiabilityState
 } from './domain';

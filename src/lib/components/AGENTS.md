@@ -13,6 +13,7 @@ This subtree contains reusable Svelte presentation for the application shell, co
 - `AccountEditor.svelte`: create/rename form with asset threshold policy controls.
 - `AccountList.svelte`: ordered active-account list with edit, move, and safe archive actions.
 - `ThresholdDefaultsForm.svelte`: app-level default asset threshold editor.
+- `AccountHistoryChart.svelte`: responsive Chart.js final-balance line with current threshold annotations and point-selection callbacks.
 
 Components receive data and action callbacks. They do not open IndexedDB or own route navigation.
 Forms preserve user input after failed validation or persistence and announce errors accessibly. Cockpit components remain presentation-only; the route owns mutable form state and the domain adapter owns calculations.

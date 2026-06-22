@@ -14,7 +14,7 @@ Read `README.md` for the domain data flow and a plain-language guide to the Type
 - `calculations.ts`: payment resolution and source-asset projections.
 - `thresholds.ts`: threshold validation, inheritance/override resolution, and state classification.
 - `validation.ts`: draft versus stand-up completeness checks plus non-blocking financial warnings.
-- `selectors.ts`: exact newest-first Archive summaries and saved-snapshot account history datapoints.
+- `selectors.ts`: exact newest-first Archive summaries, newest stood-up Whiteboard state, and saved-snapshot account history datapoints.
 - `index.ts`: explicit intentional public barrel re-exported by `$lib`; internal factories stay private.
 
 `test-fixtures.ts` contains the canonical roadmap scenario for tests and is not part of the public barrel.
@@ -28,6 +28,7 @@ Read `README.md` for the domain data flow and a plain-language guide to the Type
 - Statement balances are optional except for Statement payment mode. Resolved omitted values are null, and provided remaining statement balances floor at zero; only account balances remain signed.
 - Threshold boundaries are strict `below` checks: warning equality is healthy and danger equality is warning.
 - Archive summaries and history come only from saved snapshots; drafts have no completed payment total and history never infers transactions.
+- Whiteboard latest state uses only the newest stood-up session; current names, archive state, and threshold settings decorate saved balances without filling gaps from older sessions.
 - Account names are normalized and globally unique; `sortOrder` is a non-negative position scoped by account type.
 
 ## Change Rules

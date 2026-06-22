@@ -80,13 +80,21 @@ export {
 } from './money';
 export type { Money, MoneyParseErrorCode, MoneyParseResult } from './money';
 
-export { selectAccountHistory, selectArchiveSessionSummaries } from './selectors';
+export {
+	selectAccountHistory,
+	selectArchiveSessionSummaries,
+	selectLatestStoodUpState
+} from './selectors';
 export type {
 	AccountHistoryDatapoint,
 	AccountHistoryInput,
 	AccountHistoryPaymentDetails,
 	ArchiveSessionSummary,
-	ArchiveSnapshotInput
+	ArchiveSnapshotInput,
+	WhiteboardAssetState,
+	WhiteboardLatestState,
+	WhiteboardLatestStateInput,
+	WhiteboardLiabilityState
 } from './selectors';
 
 export {

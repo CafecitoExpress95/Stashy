@@ -48,10 +48,10 @@
 		<span class="card-kicker">Open Archive -></span>
 	</a>
 	<a class="launch-card panel" href={resolve('/whiteboard/')}>
-		<p class="eyebrow">Coming later</p>
+		<p class="eyebrow">Ready now</p>
 		<h2>Visit Whiteboard</h2>
-		<p>See the latest state and follow each account's saved balance history.</p>
-		<span class="card-kicker">Preview area -></span>
+		<p>See the latest stood-up state and follow each account's exact saved balance history.</p>
+		<span class="card-kicker">Open Whiteboard -></span>
 	</a>
 	<a class="launch-card panel" href={resolve('/configuration/data/')}>
 		<p class="eyebrow">Coming later</p>

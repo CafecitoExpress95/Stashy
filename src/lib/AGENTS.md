@@ -15,9 +15,10 @@ This subtree contains code intended for reuse across routes and features.
 - `index.ts` is the `$lib` barrel and explicitly names the supported domain API; do not use wildcard
   exports that can leak internal helpers.
 - `domain/` owns exact money, records, configuration selectors, cockpit adaptation, calculations, thresholds,
-  validation, Archive summaries, and history; read `domain/AGENTS.md` before changing it.
+  validation, Archive summaries, latest-state analysis, and account history; read `domain/AGENTS.md` before changing it.
+- `charting/` owns the tree-shaken Chart.js data/options adapter for exact account-history visualization.
 - `persistence/` owns versioned IndexedDB configuration, Archive reads, and atomic draft/completed/correction persistence; read its child guide.
-- `components/` owns the reusable app shell, configuration forms, cockpit cards, session replay, and completed-session receipt; read its child guide.
+- `components/` owns the reusable app shell, configuration forms, cockpit cards, session replay, completed-session receipt, and account-history chart; read its child guide.
 - Product logo and favicon assets are served from `static/` so every prerendered route uses the
   same supplied iconography.
 

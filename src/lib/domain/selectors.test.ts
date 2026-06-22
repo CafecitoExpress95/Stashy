@@ -2,12 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { calculatePayment } from './calculations';
 import {
 	accountRecordIdFromString,
+	appSettingsIdFromString,
 	isoTimestampFromString,
 	sessionIdFromString,
 	sitDownDateFromString
 } from './identity';
 import { moneyFromMinorUnits } from './money';
-import { selectAccountHistory, selectArchiveSessionSummaries } from './selectors';
+import {
+	selectAccountHistory,
+	selectArchiveSessionSummaries,
+	selectLatestStoodUpState
+} from './selectors';
 import {
 	canonicalAccounts,
 	canonicalPaymentDrafts,
@@ -15,7 +20,7 @@ import {
 	fixtureIds,
 	fixtureTimestamp
 } from './test-fixtures';
-import type { AccountRecord, Session } from './types';
+import type { AccountRecord, AppSettings, Session } from './types';
 
 const laterSession: Session = {
 	...canonicalSession,
@@ -182,6 +187,113 @@ describe('account history selector', () => {
 				paymentRecords: []
 			})
 		).toEqual([]);
+	});
+});
+
+describe('latest stood-up Whiteboard selector', () => {
+	const settings: AppSettings = {
+		id: appSettingsIdFromString('90000000-0000-4000-8000-000000000001'),
+		schemaVersion: 1,
+		currency: 'USD',
+		defaultAssetThresholds: {
+			warningBelow: moneyFromMinorUnits(40_000),
+			dangerBelow: moneyFromMinorUnits(10_000)
+		},
+		lastImportedAt: null,
+		lastExportedAt: null,
+		createdAt: fixtureTimestamp,
+		updatedAt: fixtureTimestamp
+	};
+
+	it('uses the newest stood-up snapshot without filling missing accounts from older sessions', () => {
+		const currentAccounts = canonicalAccounts.map((account) =>
+			account.id === fixtureIds.checking
+				? { ...account, name: 'Household Checking', archived: true }
+				: account
+		);
+		const olderSavings: AccountRecord = {
+			id: accountRecordIdFromString('40000000-0000-4000-8000-000000000021'),
+			sessionId: canonicalSession.id,
+			accountId: fixtureIds.savings,
+			openingBalance: moneyFromMinorUnits(50_000),
+			finalBalance: moneyFromMinorUnits(50_000),
+			openingStatementBalance: null,
+			finalStatementBalance: null,
+			createdAt: fixtureTimestamp,
+			updatedAt: fixtureTimestamp
+		};
+		const latestChecking: AccountRecord = {
+			...olderSavings,
+			id: accountRecordIdFromString('40000000-0000-4000-8000-000000000022'),
+			sessionId: laterSession.id,
+			accountId: fixtureIds.checking,
+			openingBalance: moneyFromMinorUnits(45_000),
+			finalBalance: moneyFromMinorUnits(9_999)
+		};
+		const latestLiability = liabilityRecord(
+			'000000000023',
+			laterSession.id,
+			20_000,
+			7_500,
+			15_000,
+			2_500
+		);
+
+		const state = selectLatestStoodUpState({
+			settings,
+			accounts: currentAccounts,
+			sessions: [canonicalSession, draftSession, laterSession],
+			accountRecords: [olderSavings, latestChecking, latestLiability]
+		});
+
+		expect(state?.sessionId).toBe(laterSession.id);
+		expect(state?.assets).toEqual([
+			expect.objectContaining({
+				accountName: 'Household Checking',
+				archived: true,
+				finalBalance: 9_999,
+				thresholdState: 'danger',
+				thresholds: settings.defaultAssetThresholds
+			})
+		]);
+		expect(state?.liabilities).toEqual([
+			expect.objectContaining({
+				accountName: 'Card A',
+				finalBalance: 7_500,
+				finalStatementBalance: 2_500
+			})
+		]);
+	});
+
+	it('uses creation time and then ID to resolve same-date completed sessions', () => {
+		const laterCreated = {
+			...canonicalSession,
+			id: sessionIdFromString('10000000-0000-4000-8000-000000000099'),
+			createdAt: isoTimestampFromString('2026-06-18T13:00:00.000Z')
+		};
+		const tiedCreated = {
+			...laterCreated,
+			id: sessionIdFromString('10000000-0000-4000-8000-000000000100')
+		};
+		const state = selectLatestStoodUpState({
+			settings,
+			accounts: canonicalAccounts,
+			sessions: [canonicalSession, laterCreated, tiedCreated],
+			accountRecords: []
+		});
+
+		expect(state?.sessionId).toBe(tiedCreated.id);
+	});
+
+	it('returns null when only drafts exist', () => {
+		expect(
+			selectLatestStoodUpState({
+				settings,
+				accounts: canonicalAccounts,
+				sessions: [draftSession],
+				accountRecords: []
+			})
+		).toBeNull();
 	});
 });
 
