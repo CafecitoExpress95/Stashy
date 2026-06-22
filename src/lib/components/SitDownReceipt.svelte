@@ -27,6 +27,17 @@
 		<div class="receipt-seal" aria-label="Stood up session">Stood up</div>
 	</header>
 
+	<section class="panel receipt-actions" aria-label="Next sit-down">
+		<div>
+			<strong>Ready for the next one?</strong>
+			<p>A new sit-down starts as its own saved draft with fresh IDs.</p>
+			{#if startMessage}<p class="field-error" role="alert">{startMessage}</p>{/if}
+		</div>
+		<button class="button primary" type="button" disabled={startingNew} onclick={onStartNew}>
+			{startingNew ? 'Starting…' : 'Start New Sit-Down'}
+		</button>
+	</section>
+
 	{#if warnings.length > 0}
 		<section class="panel receipt-warnings" aria-labelledby="receipt-warnings-title">
 			<p class="eyebrow">Saved with real-world messiness</p>
@@ -40,15 +51,4 @@
 	{/if}
 
 	<SessionReplayDetails {snapshot} {accounts} />
-
-	<footer class="panel receipt-actions">
-		<div>
-			<strong>Ready for the next one?</strong>
-			<p>A new sit-down starts as its own saved draft with fresh IDs.</p>
-			{#if startMessage}<p class="field-error" role="alert">{startMessage}</p>{/if}
-		</div>
-		<button class="button primary" type="button" disabled={startingNew} onclick={onStartNew}>
-			{startingNew ? 'Starting…' : 'Start New Sit-Down'}
-		</button>
-	</footer>
 </section>

@@ -82,6 +82,16 @@ test('canonical scenario saves explicitly and stands up into a durable receipt',
 	await page.getByRole('button', { name: 'Save Draft' }).click();
 	await expect(page.getByText('Draft saved in this browser.')).toBeVisible();
 	await confirmStandUp(page);
+	const nextSitDownAction = page.getByRole('button', { name: 'Start New Sit-Down' });
+	await expect(nextSitDownAction).toBeVisible();
+	const receiptOrder = await page.evaluate(() => {
+		const action = document.querySelector('.receipt-actions');
+		const details = document.querySelector('.session-replay-details');
+		return action && details
+			? action.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING
+			: 0;
+	});
+	expect(receiptOrder).toBeTruthy();
 	await expect(page.getByRole('heading', { name: 'Asset snapshots' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Liability payments' })).toBeVisible();
 	await expect(page.getByText('$324.80', { exact: true })).toBeVisible();
