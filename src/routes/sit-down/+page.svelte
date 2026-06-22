@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { onDestroy, onMount } from 'svelte';
 	import AssetProjectionDock from '$lib/components/AssetProjectionDock.svelte';
 	import AssetProjectionPanel from '$lib/components/AssetProjectionPanel.svelte';
@@ -61,6 +63,8 @@
 	let confirmingStandUp = $state(false);
 	let startingNew = $state(false);
 	let startMessage = $state('');
+	let editingCompleted = $state(false);
+	let correctionSaving = $state(false);
 	let standUpDialog = $state<HTMLDialogElement>();
 	let editRevision = 0;
 	let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -83,10 +87,26 @@
 	let hasRequiredAccounts = $derived(
 		form !== null && form.assets.length > 0 && form.payments.length > 0
 	);
-	let busy = $derived(pendingSaves > 0 || confirmingStandUp || startingNew);
+	let busy = $derived(pendingSaves > 0 || confirmingStandUp || startingNew || correctionSaving);
+	let hasUnsavedCorrection = $derived(editingCompleted && editRevision > 0);
+
+	beforeNavigate((navigation) => {
+		if (
+			hasUnsavedCorrection &&
+			!window.confirm('Discard the unsaved corrections to this session?')
+		) {
+			navigation.cancel();
+		}
+	});
 
 	onMount(() => {
 		void loadCockpit();
+		const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+			if (!hasUnsavedCorrection) return;
+			event.preventDefault();
+		};
+		window.addEventListener('beforeunload', warnBeforeUnload);
+		return () => window.removeEventListener('beforeunload', warnBeforeUnload);
 	});
 
 	onDestroy(() => clearAutosave());
@@ -123,18 +143,43 @@
 		clearAutosave();
 		loading = true;
 		loadError = '';
+		editingCompleted = false;
 		try {
 			configurationRepository = createBrowserConfigurationRepository();
 			sitDownRepository = createBrowserSitDownRepository();
 			const configuration = await configurationRepository.loadConfiguration();
 			settings = configuration.settings;
 			accounts = [...configuration.accounts];
-			const latest = await sitDownRepository.loadLatestSession();
+			const requestedId = page.url.searchParams.get('session');
+			let latest;
+			if (requestedId) {
+				let sessionId;
+				try {
+					sessionId = sessionIdFromString(requestedId);
+				} catch {
+					throw new Error(
+						'That session address is malformed. Return to the Archive and try again.'
+					);
+				}
+				latest = await sitDownRepository.loadSession(sessionId);
+				if (!latest) throw new Error('That saved session could not be found.');
+			} else {
+				latest = await sitDownRepository.loadLatestSession();
+			}
 			if (latest?.session.isDraft) {
 				form = hydrateCockpitForm(latest as SitDownDraftSnapshot, accounts);
 				completedSnapshot = null;
 				actionState = 'saved';
-				actionMessage = 'Saved draft resumed from this browser.';
+				actionMessage = requestedId
+					? 'Saved draft opened from the Archive.'
+					: 'Saved draft resumed from this browser.';
+			} else if (latest && requestedId) {
+				form = hydrateCockpitForm(latest as StoodUpSitDownSnapshot, accounts);
+				completedSnapshot = null;
+				editingCompleted = true;
+				actionState = 'saved';
+				actionMessage =
+					'No corrections have been made. Changes save only when you choose Save Corrections.';
 			} else if (latest) {
 				completedSnapshot = latest as StoodUpSitDownSnapshot;
 				form = null;
@@ -161,6 +206,7 @@
 	}
 
 	function scheduleAutosave(): void {
+		if (editingCompleted) return;
 		clearAutosave();
 		autosaveTimer = setTimeout(() => {
 			autosaveTimer = null;
@@ -172,7 +218,9 @@
 		standUpAttempted = false;
 		editRevision += 1;
 		actionState = 'unsaved';
-		actionMessage = 'Unsaved changes. Autosave is waiting for a quiet moment.';
+		actionMessage = editingCompleted
+			? 'Unsaved corrections. Nothing changes until you choose Save Corrections.'
+			: 'Unsaved changes. Autosave is waiting for a quiet moment.';
 		scheduleAutosave();
 	}
 
@@ -261,7 +309,7 @@
 	}
 
 	async function queueDraftSave(manual: boolean): Promise<void> {
-		if (!form || !derivation || !sitDownRepository) return;
+		if (editingCompleted || !form || !derivation || !sitDownRepository) return;
 		clearAutosave();
 		const snapshot = getCockpitDraftData(derivation);
 		if (!snapshot) {
@@ -307,7 +355,7 @@
 	}
 
 	function requestStandUp(): void {
-		if (!derivation || confirmingStandUp) return;
+		if (editingCompleted || !derivation || confirmingStandUp) return;
 		standUpAttempted = true;
 		const snapshot = getCockpitStandUpData(derivation);
 		if (!snapshot) {
@@ -349,6 +397,48 @@
 		}
 	}
 
+	async function saveCorrections(): Promise<void> {
+		if (!editingCompleted || !form || !derivation || !sitDownRepository || correctionSaving) return;
+		standUpAttempted = true;
+		const snapshot = getCockpitStandUpData(derivation);
+		if (!snapshot) {
+			actionState = 'failed';
+			actionMessage = 'Complete the highlighted payment details before saving corrections.';
+			focusControl(derivation.firstStandUpBlockingControlId);
+			return;
+		}
+		correctionSaving = true;
+		actionState = 'saving';
+		actionMessage = 'Saving corrections and their audit trail…';
+		try {
+			const result = await sitDownRepository.saveStoodUpCorrection(snapshot);
+			form.updatedAt = result.snapshot.session.updatedAt;
+			editRevision = 0;
+			actionState = 'saved';
+			await goto(resolve(`/archive/session/?session=${result.snapshot.session.id}&saved=1`));
+		} catch (error) {
+			actionState = 'failed';
+			actionMessage =
+				error instanceof Error
+					? error.message + ' Your corrections remain on screen and were not partially saved.'
+					: 'Corrections could not be saved. Your entries remain on screen.';
+		} finally {
+			correctionSaving = false;
+		}
+	}
+
+	async function cancelCompletedEdit(): Promise<void> {
+		if (!form) return;
+		if (
+			hasUnsavedCorrection &&
+			!window.confirm('Discard the unsaved corrections to this session?')
+		) {
+			return;
+		}
+		editRevision = 0;
+		await goto(resolve(`/archive/session/?session=${form.sessionId}`));
+	}
+
 	async function startNewSitDown(): Promise<void> {
 		if (!settings || !sitDownRepository || startingNew) return;
 		startingNew = true;
@@ -360,6 +450,7 @@
 			const saved = await sitDownRepository.saveDraft(snapshot);
 			form = hydrateCockpitForm(saved, accounts);
 			completedSnapshot = null;
+			editingCompleted = false;
 			editRevision = 0;
 			actionState = 'saved';
 			actionMessage = 'New blank draft saved in this browser.';
@@ -377,9 +468,13 @@
 
 <section class="page-intro cockpit-intro">
 	<div>
-		<p class="eyebrow">Payment cockpit</p>
-		<h1>Sit Down</h1>
-		<p>Update the truth, plan each payment, and keep the source balances in sight.</p>
+		<p class="eyebrow">{editingCompleted ? 'Correct saved history' : 'Payment cockpit'}</p>
+		<h1>{editingCompleted ? 'Edit Session' : 'Sit Down'}</h1>
+		<p>
+			{editingCompleted
+				? 'Correct this stored snapshot deliberately. Later sessions will remain untouched.'
+				: 'Update the truth, plan each payment, and keep the source balances in sight.'}
+		</p>
 	</div>
 	{#if form}
 		<label class="sit-down-date" for="sit-down-date">
@@ -499,29 +594,49 @@
 		<div class="save-state {actionState}" role="status" aria-live="polite">
 			<strong>
 				{actionState === 'saving'
-					? 'Saving'
+					? editingCompleted
+						? 'Saving corrections'
+						: 'Saving'
 					: actionState === 'saved'
-						? 'Draft saved'
+						? editingCompleted
+							? 'No unsaved corrections'
+							: 'Draft saved'
 						: actionState === 'invalid'
 							? 'Autosave paused'
 							: actionState === 'failed'
 								? 'Needs attention'
-								: 'Unsaved'}
+								: editingCompleted
+									? 'Unsaved corrections'
+									: 'Unsaved'}
 			</strong>
 			<span>{actionMessage}</span>
 		</div>
 		<div class="cockpit-action-buttons">
-			<button class="button secondary" type="button" disabled={busy} onclick={saveDraft}>
-				{pendingSaves > 0 ? 'Saving…' : 'Save Draft'}
-			</button>
-			<button
-				class="button primary"
-				type="button"
-				disabled={confirmingStandUp}
-				onclick={requestStandUp}
-			>
-				Stand Up
-			</button>
+			{#if editingCompleted}
+				<button
+					class="button secondary"
+					type="button"
+					disabled={busy}
+					onclick={cancelCompletedEdit}
+				>
+					Cancel
+				</button>
+				<button class="button primary" type="button" disabled={busy} onclick={saveCorrections}>
+					{correctionSaving ? 'Saving…' : 'Save Corrections'}
+				</button>
+			{:else}
+				<button class="button secondary" type="button" disabled={busy} onclick={saveDraft}>
+					{pendingSaves > 0 ? 'Saving…' : 'Save Draft'}
+				</button>
+				<button
+					class="button primary"
+					type="button"
+					disabled={confirmingStandUp}
+					onclick={requestStandUp}
+				>
+					Stand Up
+				</button>
+			{/if}
 		</div>
 	</section>
 {/if}

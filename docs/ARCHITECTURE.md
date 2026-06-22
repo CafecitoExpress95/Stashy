@@ -72,11 +72,21 @@ Phase 4 extends the normalized Phase 3 records through one `SitDownRepository` b
   saves the resolved opening/final account balances and payment results atomically.
 - Blank confirmation IDs and notes are valid final data. Omitted statement balances are stored as
   `null`; supplied remaining statement balances retain the zero floor.
-- Reload opens the most recently updated session. Drafts return to the editable cockpit; stood-up
-  sessions return to a read-only completion receipt until **Start New Sit-Down** commits a new blank draft.
+- Reload opens the newest session by sit-down date, creation time, and ID so correcting old history cannot replace the current workflow. Drafts return to the editable cockpit; stood-up sessions return to a read-only completion receipt until **Start New Sit-Down** commits a new blank draft.
 - Version 3 removes the low-value boolean `isDraft` index, keeps the chronological `updatedAt` index,
   and creates the empty `auditEntries` store with entity and chronology indexes for Phase 5 editing.
 - Version 1 and version 2 databases migrate in place. Persisted records are validated according to
   their draft or completed lifecycle and corrupt data is surfaced rather than reset.
 
-Phase 5 owns archive listing, completed-session editing, and creation/presentation of audit entries.
+## Phase 5 Archive and Historical Corrections
+
+Phase 5 extends the same normalized records and schema version 3:
+
+- Archive lists sessions by sit-down date, then creation time and ID, newest first. Updating an old session's edit timestamp does not move it above later sessions.
+- Archive summaries use current account names, exact completed payment totals, and no total for intentionally incomplete drafts.
+- Read-only replay and edit routes use query-string session IDs so the static deployment does not require runtime-generated route files.
+- Drafts continue through the Phase 4 autosave and Stand Up lifecycle. Stood-up sessions disable autosave and require explicit **Save Corrections**.
+- A completed correction preserves session and child IDs, record ownership, creation timestamps, and unchanged child timestamps. It cannot add/remove historical children or demote the session to a draft.
+- Changed session, account, and payment records receive exact before/after audit entries in the same IndexedDB transaction as the correction. No-op corrections, draft saves, and initial Stand Up create no audit entries.
+- Editing one session recalculates only that session's saved snapshots. Later manually entered sessions are never rewritten or flagged.
+- Audit notes remain null in MS-01; a user-facing audit-history presentation is deferred.

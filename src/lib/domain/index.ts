@@ -19,6 +19,7 @@ export type {
 	CockpitIdFactory,
 	CockpitPaymentForm,
 	CockpitPaymentView,
+	CockpitSavedData,
 	CockpitStandUpData
 } from './cockpit';
 
@@ -79,11 +80,13 @@ export {
 } from './money';
 export type { Money, MoneyParseErrorCode, MoneyParseResult } from './money';
 
-export { selectAccountHistory } from './selectors';
+export { selectAccountHistory, selectArchiveSessionSummaries } from './selectors';
 export type {
 	AccountHistoryDatapoint,
 	AccountHistoryInput,
-	AccountHistoryPaymentDetails
+	AccountHistoryPaymentDetails,
+	ArchiveSessionSummary,
+	ArchiveSnapshotInput
 } from './selectors';
 
 export {

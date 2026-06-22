@@ -13,6 +13,7 @@ import {
 } from '$lib/domain';
 import { IndexedDbConfigurationRepository } from './indexeddb-configuration-repository';
 import { IndexedDbSitDownRepository } from './indexeddb-sit-down-repository';
+import { parseStoredAuditEntry } from './records';
 import {
 	ACCOUNTS_STORE,
 	ACCOUNT_RECORDS_STORE,
@@ -154,10 +155,16 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
 
 let factory: IDBFactory;
 let repository: IndexedDbSitDownRepository;
+let auditId: number;
 
 beforeEach(() => {
 	factory = new IDBFactory();
-	repository = new IndexedDbSitDownRepository({ factory, now: () => savedAt });
+	auditId = 1;
+	repository = new IndexedDbSitDownRepository({
+		factory,
+		now: () => savedAt,
+		randomUUID: () => `d0000000-0000-4000-8000-${String(auditId++).padStart(12, '0')}`
+	});
 });
 
 describe('schema migration', () => {
@@ -326,5 +333,175 @@ describe('sit-down lifecycle persistence', () => {
 		await transactionDone(transaction);
 		database.close();
 		await expect(repository.loadLatestSession()).rejects.toMatchObject({ code: 'corrupt-data' });
+	});
+});
+
+function laterStoodUpSnapshot(): StoodUpSitDownSnapshot {
+	const laterSessionId = sessionIdFromString('e0000000-0000-4000-8000-000000000001');
+	return {
+		session: {
+			...stoodUpSnapshot().session,
+			id: laterSessionId,
+			sitDownDate: sitDownDateFromString('2026-06-21'),
+			createdAt: isoTimestampFromString('2026-06-21T12:00:00.000Z'),
+			updatedAt: isoTimestampFromString('2026-06-21T12:00:00.000Z')
+		},
+		accountRecords: stoodUpSnapshot().accountRecords.map((record, index) => ({
+			...record,
+			id: accountRecordIdFromString(
+				'f0000000-0000-4000-8000-' + String(index + 1).padStart(12, '0')
+			),
+			sessionId: laterSessionId,
+			createdAt: isoTimestampFromString('2026-06-21T12:00:00.000Z'),
+			updatedAt: isoTimestampFromString('2026-06-21T12:00:00.000Z')
+		})),
+		paymentRecords: stoodUpSnapshot().paymentRecords.map((record, index) => ({
+			...record,
+			id: paymentRecordIdFromString(
+				'80000000-0000-4000-8000-' + String(index + 1).padStart(12, '0')
+			),
+			sessionId: laterSessionId,
+			createdAt: isoTimestampFromString('2026-06-21T12:00:00.000Z'),
+			updatedAt: isoTimestampFromString('2026-06-21T12:00:00.000Z')
+		}))
+	};
+}
+
+async function storedAudits(): Promise<ReturnType<typeof parseStoredAuditEntry>[]> {
+	const database = await openDatabase(factory);
+	const transaction = database.transaction(AUDIT_ENTRIES_STORE, 'readonly');
+	const request = transaction.objectStore(AUDIT_ENTRIES_STORE).getAll();
+	const values = await new Promise<unknown[]>((resolve, reject) => {
+		request.onsuccess = () => resolve(request.result as unknown[]);
+		request.onerror = () => reject(request.error);
+	});
+	await transactionDone(transaction);
+	database.close();
+	return values.map(parseStoredAuditEntry);
+}
+
+describe('Phase 5 archive and corrections', () => {
+	it('lists sessions by sit-down date and loads one session by ID', async () => {
+		const older = await repository.standUp(stoodUpSnapshot());
+		const newer = await repository.standUp(laterStoodUpSnapshot());
+		expect((await repository.listSessions()).map((snapshot) => snapshot.session.id)).toEqual([
+			newer.session.id,
+			older.session.id
+		]);
+		expect(await repository.loadSession(older.session.id)).toEqual(older);
+		expect(
+			await repository.loadSession(sessionIdFromString('ffffffff-ffff-4fff-8fff-ffffffffffff'))
+		).toBeNull();
+	});
+
+	it('audits a confirmation correction with exact before and after values', async () => {
+		const original = await repository.standUp(stoodUpSnapshot());
+		const corrected = {
+			...original,
+			paymentRecords: original.paymentRecords.map((payment) => ({
+				...payment,
+				confirmationId: 'POSTED-123'
+			}))
+		};
+		const result = await repository.saveStoodUpCorrection(corrected);
+		expect(result.auditEntries).toHaveLength(1);
+		expect(result.auditEntries[0]).toMatchObject({
+			entityType: 'payment-record',
+			before: { confirmationId: null },
+			after: { confirmationId: 'POSTED-123' },
+			notes: null
+		});
+		expect(await storedAudits()).toEqual(result.auditEntries);
+	});
+
+	it('updates one old snapshot without changing a later session', async () => {
+		const original = await repository.standUp(stoodUpSnapshot());
+		const later = await repository.standUp(laterStoodUpSnapshot());
+		const corrected: StoodUpSitDownSnapshot = {
+			session: original.session,
+			accountRecords: original.accountRecords.map((record) =>
+				record.accountId === assetId
+					? { ...record, finalBalance: moneyFromMinorUnits(80_000) }
+					: { ...record, finalBalance: moneyFromMinorUnits(20_000) }
+			),
+			paymentRecords: original.paymentRecords.map((payment) => ({
+				...payment,
+				paymentAmount: moneyFromMinorUnits(20_000),
+				remainingAccountBalance: moneyFromMinorUnits(20_000)
+			}))
+		};
+		const result = await repository.saveStoodUpCorrection(corrected);
+		expect(result.auditEntries.map((entry) => entry.entityType).sort()).toEqual([
+			'account-record',
+			'account-record',
+			'payment-record'
+		]);
+		expect(await repository.loadSession(later.session.id)).toEqual(later);
+		expect((await repository.listSessions()).map((snapshot) => snapshot.session.id)).toEqual([
+			later.session.id,
+			original.session.id
+		]);
+	});
+
+	it('requires the audited path for semantic changes after Stand Up', async () => {
+		const original = await repository.standUp(stoodUpSnapshot());
+		await expect(
+			repository.standUp({
+				...original,
+				paymentRecords: original.paymentRecords.map((payment) => ({
+					...payment,
+					notes: 'Bypass attempt'
+				}))
+			})
+		).rejects.toMatchObject({ code: 'invalid-session' });
+		expect(await repository.loadSession(original.session.id)).toEqual(original);
+		expect(await storedAudits()).toEqual([]);
+	});
+
+	it('does not create audit noise for a no-op correction', async () => {
+		const original = await repository.standUp(stoodUpSnapshot());
+		const result = await repository.saveStoodUpCorrection(original);
+		expect(result.snapshot).toEqual(original);
+		expect(result.auditEntries).toEqual([]);
+		expect(await storedAudits()).toEqual([]);
+	});
+
+	it('rejects demotion and changed historical relationships', async () => {
+		const original = await repository.standUp(stoodUpSnapshot());
+		await expect(repository.saveDraft(draftSnapshot())).rejects.toMatchObject({
+			code: 'invalid-session'
+		});
+		await expect(
+			repository.saveStoodUpCorrection({
+				...original,
+				paymentRecords: original.paymentRecords.map((payment) => ({
+					...payment,
+					id: paymentRecordIdFromString('c0000000-0000-4000-8000-000000000099')
+				}))
+			})
+		).rejects.toMatchObject({ code: 'invalid-session' });
+	});
+
+	it('aborts records and audits together when a correction write is interrupted', async () => {
+		const original = await repository.standUp(stoodUpSnapshot());
+		const failing = new IndexedDbSitDownRepository({
+			factory,
+			now: () => new Date('2026-06-20T14:00:00.000Z'),
+			randomUUID: () => 'd0000000-0000-4000-8000-000000000099',
+			beforeCommit(operation, transaction) {
+				if (operation === 'save-correction') transaction.abort();
+			}
+		});
+		await expect(
+			failing.saveStoodUpCorrection({
+				...original,
+				paymentRecords: original.paymentRecords.map((payment) => ({
+					...payment,
+					notes: 'Corrected note'
+				}))
+			})
+		).rejects.toMatchObject({ code: 'storage-failed' });
+		expect(await repository.loadSession(original.session.id)).toEqual(original);
+		expect(await storedAudits()).toEqual([]);
 	});
 });

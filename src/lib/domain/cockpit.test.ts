@@ -234,6 +234,36 @@ describe('cockpit derivation', () => {
 		expect(snapshot?.paymentRecords[0].confirmationId).toBe('A-100');
 	});
 
+	it('hydrates a stood-up custom payment with stable IDs and its resolved amount', () => {
+		const form = freshForm();
+		enterAssetOpenings(form);
+		for (const payment of form.payments) {
+			Object.assign(payment, {
+				sourceAssetAccountId: canonicalAccounts[0].id,
+				paymentMode: 'custom',
+				startingAccountBalanceText: '$50.00',
+				customPaymentAmountText: '$12.34'
+			});
+		}
+		const snapshot = getCockpitStandUpData(deriveCockpit(form, canonicalAccounts, settings));
+		if (!snapshot) throw new Error('Expected a completed snapshot.');
+
+		const hydrated = hydrateCockpitForm(snapshot, canonicalAccounts);
+		expect(hydrated.sessionId).toBe(snapshot.session.id);
+		expect(hydrated.assets.map((asset) => asset.recordId)).toEqual(
+			form.assets.map((asset) => asset.recordId)
+		);
+		expect(hydrated.payments.map((payment) => payment.paymentId)).toEqual(
+			form.payments.map((payment) => payment.paymentId)
+		);
+		expect(hydrated.payments.every((payment) => payment.customPaymentAmountText === '$12.34')).toBe(
+			true
+		);
+		expect(hydrated.payments.every((payment) => payment.startingStatementBalanceText === '')).toBe(
+			true
+		);
+	});
+
 	it('does not produce a stood-up snapshot until every required value is complete', () => {
 		const form = freshForm();
 		enterAssetOpenings(form);

@@ -1,9 +1,11 @@
 import type {
 	AccountRecord,
+	AuditEntry,
 	DraftAccountRecord,
 	DraftPaymentRecord,
 	PaymentRecord,
-	Session
+	Session,
+	SessionId
 } from '$lib/domain';
 
 /** One normalized unfinished sit-down and all of its flat child records. */
@@ -13,7 +15,7 @@ export type SitDownDraftSnapshot = {
 	readonly paymentRecords: readonly DraftPaymentRecord[];
 };
 
-/** One immutable completed sit-down and all resolved child snapshots. */
+/** One completed sit-down and all resolved child snapshots. */
 export type StoodUpSitDownSnapshot = {
 	readonly session: Session & { readonly isDraft: false };
 	readonly accountRecords: readonly AccountRecord[];
@@ -21,6 +23,11 @@ export type StoodUpSitDownSnapshot = {
 };
 
 export type SitDownSnapshot = SitDownDraftSnapshot | StoodUpSitDownSnapshot;
+
+export type StoodUpCorrectionResult = {
+	readonly snapshot: StoodUpSitDownSnapshot;
+	readonly auditEntries: readonly AuditEntry[];
+};
 
 export type SitDownRepositoryErrorCode =
 	| 'storage-unavailable'
@@ -39,7 +46,10 @@ export class SitDownRepositoryError extends Error {
 }
 
 export interface SitDownRepository {
+	listSessions(): Promise<readonly SitDownSnapshot[]>;
+	loadSession(sessionId: SessionId): Promise<SitDownSnapshot | null>;
 	loadLatestSession(): Promise<SitDownSnapshot | null>;
 	saveDraft(snapshot: SitDownDraftSnapshot): Promise<SitDownDraftSnapshot>;
 	standUp(snapshot: StoodUpSitDownSnapshot): Promise<StoodUpSitDownSnapshot>;
+	saveStoodUpCorrection(snapshot: StoodUpSitDownSnapshot): Promise<StoodUpCorrectionResult>;
 }

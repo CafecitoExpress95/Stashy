@@ -1,7 +1,14 @@
 /** Read-only projections that turn saved snapshots into account history. */
-import type { AccountId } from './identity';
-import type { Money } from './money';
-import type { Account, AccountRecord, PaymentMode, PaymentRecord, Session } from './types';
+import type { AccountId, IsoTimestamp, SessionId, SitDownDate } from './identity';
+import { sumMoney, type Money } from './money';
+import type {
+	Account,
+	AccountRecord,
+	DraftPaymentRecord,
+	PaymentMode,
+	PaymentRecord,
+	Session
+} from './types';
 
 /** Optional payment context displayed with a liability history point. */
 export type AccountHistoryPaymentDetails = {
@@ -138,4 +145,62 @@ export function selectAccountHistory(
 	}
 
 	return datapoints.sort(compareHistoryDatapoints);
+}
+
+/** Minimum saved-session shape needed to build the Archive list. */
+export type ArchiveSnapshotInput = {
+	readonly session: Session;
+	readonly paymentRecords: readonly (DraftPaymentRecord | PaymentRecord)[];
+};
+
+/** Concise, exact summary used by one Archive list item. */
+export type ArchiveSessionSummary = {
+	readonly sessionId: SessionId;
+	readonly sitDownDate: SitDownDate;
+	readonly createdAt: IsoTimestamp;
+	readonly updatedAt: IsoTimestamp;
+	readonly isDraft: boolean;
+	readonly paymentCount: number;
+	readonly totalPaymentAmount: Money | null;
+	readonly liabilityNames: readonly string[];
+	readonly remainingLiabilityCount: number;
+};
+
+function compareArchiveSnapshots(left: ArchiveSnapshotInput, right: ArchiveSnapshotInput): number {
+	return (
+		right.session.sitDownDate.localeCompare(left.session.sitDownDate) ||
+		right.session.createdAt.localeCompare(left.session.createdAt) ||
+		right.session.id.localeCompare(left.session.id)
+	);
+}
+
+/** Builds newest-first Archive summaries while resolving current account names. */
+export function selectArchiveSessionSummaries(
+	snapshots: readonly ArchiveSnapshotInput[],
+	accounts: readonly Account[]
+): readonly ArchiveSessionSummary[] {
+	const accountsById = new Map(accounts.map((account) => [account.id, account]));
+
+	return [...snapshots].sort(compareArchiveSnapshots).map((snapshot) => {
+		const names = snapshot.paymentRecords.map(
+			(payment) => accountsById.get(payment.liabilityAccountId)?.name ?? 'Unknown account'
+		);
+		return {
+			sessionId: snapshot.session.id,
+			sitDownDate: snapshot.session.sitDownDate,
+			createdAt: snapshot.session.createdAt,
+			updatedAt: snapshot.session.updatedAt,
+			isDraft: snapshot.session.isDraft,
+			paymentCount: snapshot.paymentRecords.length,
+			totalPaymentAmount: snapshot.session.isDraft
+				? null
+				: sumMoney(
+						snapshot.paymentRecords.flatMap((payment) =>
+							'paymentAmount' in payment ? [payment.paymentAmount] : []
+						)
+					),
+			liabilityNames: names.slice(0, 3),
+			remainingLiabilityCount: Math.max(0, names.length - 3)
+		};
+	});
 }

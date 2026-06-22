@@ -7,7 +7,7 @@ import {
 	sitDownDateFromString
 } from './identity';
 import { moneyFromMinorUnits } from './money';
-import { selectAccountHistory } from './selectors';
+import { selectAccountHistory, selectArchiveSessionSummaries } from './selectors';
 import {
 	canonicalAccounts,
 	canonicalPaymentDrafts,
@@ -182,5 +182,45 @@ describe('account history selector', () => {
 				paymentRecords: []
 			})
 		).toEqual([]);
+	});
+});
+
+describe('archive session summary selector', () => {
+	it('sorts by session date while preserving exact totals and current names', () => {
+		const payments = canonicalPaymentDrafts.map((draft) => {
+			const result = calculatePayment(draft);
+			if (!result.ok) throw new Error('Canonical payment must resolve.');
+			return result.value;
+		});
+		const renamedAccounts = canonicalAccounts.map((account) =>
+			account.id === fixtureIds.cardA
+				? { ...account, name: 'Renamed Card A', archived: true }
+				: account
+		);
+		const summaries = selectArchiveSessionSummaries(
+			[
+				{ session: canonicalSession, paymentRecords: payments },
+				{
+					session: draftSession,
+					paymentRecords: [
+						{
+							...canonicalPaymentDrafts[0],
+							sessionId: draftSession.id
+						}
+					]
+				},
+				{ session: laterSession, paymentRecords: [] }
+			],
+			renamedAccounts
+		);
+
+		expect(summaries.map((summary) => summary.sessionId)).toEqual([
+			laterSession.id,
+			draftSession.id,
+			canonicalSession.id
+		]);
+		expect(summaries[1].totalPaymentAmount).toBeNull();
+		expect(summaries[2].totalPaymentAmount).toBe(67_530);
+		expect(summaries[2].liabilityNames).toEqual(['Renamed Card A', 'Card B', 'Card C']);
 	});
 });

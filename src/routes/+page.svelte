@@ -40,10 +40,12 @@
 		<span class="card-kicker">Open accounts -></span>
 	</a>
 	<a class="launch-card panel" href={resolve('/archive/')}>
-		<p class="eyebrow">Coming later</p>
+		<p class="eyebrow">Ready now</p>
 		<h2>Check Archive</h2>
-		<p>Replay past sit-downs without rewriting what happened afterward.</p>
-		<span class="card-kicker">Preview area -></span>
+		<p>
+			Replay past sit-downs and correct saved history without rewriting what happened afterward.
+		</p>
+		<span class="card-kicker">Open Archive -></span>
 	</a>
 	<a class="launch-card panel" href={resolve('/whiteboard/')}>
 		<p class="eyebrow">Coming later</p>

@@ -5,7 +5,7 @@ import { resetTestDatabase } from './database';
 const routes = [
 	['/', 'Make the money sit-down feel manageable.'],
 	['/sit-down/', 'Sit Down'],
-	['/archive/', 'Nothing to replay yet.'],
+	['/archive/', 'Check Archive'],
 	['/whiteboard/', 'The wider view comes after the records.'],
 	['/configuration/accounts/', 'Accounts'],
 	['/configuration/data/', 'Backups arrive before the real-data trial.']
@@ -26,6 +26,9 @@ test('the homepage promotes the completed sit-down cockpit', async ({ page }) =>
 	await expect(sitDownCard.getByText('Ready now')).toBeVisible();
 	await expect(sitDownCard.getByText('Start a sit-down ->')).toBeVisible();
 	await expect(sitDownCard.getByText('Coming in Phase 3')).toHaveCount(0);
+	const archiveCard = page.getByRole('link', { name: /Check Archive/ });
+	await expect(archiveCard.getByText('Ready now')).toBeVisible();
+	await expect(archiveCard.getByText('Open Archive ->')).toBeVisible();
 });
 
 test('the product shell uses approved navigation language', async ({ page }) => {

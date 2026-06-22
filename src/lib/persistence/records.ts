@@ -2,6 +2,7 @@ import {
 	accountIdFromString,
 	accountRecordIdFromString,
 	appSettingsIdFromString,
+	auditEntryIdFromString,
 	isValidAccountSortOrder,
 	isoTimestampFromString,
 	paymentRecordIdFromString,
@@ -14,6 +15,7 @@ import {
 	validateAssetThresholds,
 	type Account,
 	type AppSettings,
+	type AuditEntry,
 	type DraftAccountRecord,
 	type DraftPaymentRecord,
 	type AccountRecord,
@@ -337,4 +339,69 @@ export function parseStoredPaymentRecord(value: unknown): PaymentRecord {
 			'Remaining statement balance'
 		)
 	};
+}
+
+/** Strictly validates one stored before-and-after correction entry. */
+export function parseStoredAuditEntry(value: unknown): AuditEntry {
+	if (!isRecord(value)) return corrupt('Stored audit entry must be an object.');
+
+	let id;
+	try {
+		id = auditEntryIdFromString(String(value.id));
+	} catch {
+		return corrupt('Stored audit entry ID is invalid.');
+	}
+	const common = {
+		id,
+		notes: readNullableString(value.notes, 'Audit notes'),
+		createdAt: readTimestamp(value.createdAt, 'Audit createdAt'),
+		updatedAt: readTimestamp(value.updatedAt, 'Audit updatedAt')
+	};
+
+	if (value.entityType === 'session') {
+		const before = parseStoredSession(value.before);
+		const after = parseStoredSession(value.after);
+		let entityId;
+		try {
+			entityId = sessionIdFromString(String(value.entityId));
+		} catch {
+			return corrupt('Stored session audit entity ID is invalid.');
+		}
+		if (before.id !== entityId || after.id !== entityId) {
+			return corrupt('Stored session audit snapshots do not match their entity ID.');
+		}
+		return { ...common, entityType: 'session', entityId, before, after };
+	}
+
+	if (value.entityType === 'account-record') {
+		const before = parseStoredAccountRecord(value.before);
+		const after = parseStoredAccountRecord(value.after);
+		let entityId;
+		try {
+			entityId = accountRecordIdFromString(String(value.entityId));
+		} catch {
+			return corrupt('Stored account-record audit entity ID is invalid.');
+		}
+		if (before.id !== entityId || after.id !== entityId) {
+			return corrupt('Stored account-record audit snapshots do not match their entity ID.');
+		}
+		return { ...common, entityType: 'account-record', entityId, before, after };
+	}
+
+	if (value.entityType === 'payment-record') {
+		const before = parseStoredPaymentRecord(value.before);
+		const after = parseStoredPaymentRecord(value.after);
+		let entityId;
+		try {
+			entityId = paymentRecordIdFromString(String(value.entityId));
+		} catch {
+			return corrupt('Stored payment-record audit entity ID is invalid.');
+		}
+		if (before.id !== entityId || after.id !== entityId) {
+			return corrupt('Stored payment-record audit snapshots do not match their entity ID.');
+		}
+		return { ...common, entityType: 'payment-record', entityId, before, after };
+	}
+
+	return corrupt('Stored audit entry entity type is invalid.');
 }

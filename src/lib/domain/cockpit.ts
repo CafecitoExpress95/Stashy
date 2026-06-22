@@ -117,6 +117,8 @@ export type CockpitStandUpData = {
 	readonly paymentRecords: readonly PaymentRecord[];
 };
 
+export type CockpitSavedData = CockpitDraftData | CockpitStandUpData;
+
 type ParsedMoney = {
 	readonly value?: Money;
 	readonly error?: CockpitFieldError;
@@ -177,39 +179,39 @@ export function createCockpitForm(
 	};
 }
 
-/** Reconstructs editable text from a normalized saved draft without changing IDs. */
+/** Reconstructs editable text from a normalized saved snapshot without changing IDs. */
 export function hydrateCockpitForm(
-	draft: CockpitDraftData,
+	snapshot: CockpitSavedData,
 	accounts: readonly Account[]
 ): CockpitForm {
 	const accountsById = new Map(accounts.map((account) => [account.id, account]));
 	const recordsByAccountId = new Map(
-		draft.accountRecords.map((record) => [record.accountId, record])
+		snapshot.accountRecords.map((record) => [record.accountId, record])
 	);
 	const paymentsByLiabilityId = new Map(
-		draft.paymentRecords.map((record) => [record.liabilityAccountId, record])
+		snapshot.paymentRecords.map((record) => [record.liabilityAccountId, record])
 	);
-	const draftAccountIds = new Set(draft.accountRecords.map((record) => record.accountId));
+	const snapshotAccountIds = new Set(snapshot.accountRecords.map((record) => record.accountId));
 	const orderedAccounts = sortAccounts(
-		accounts.filter((account) => draftAccountIds.has(account.id))
+		accounts.filter((account) => snapshotAccountIds.has(account.id))
 	);
 
-	for (const accountId of draftAccountIds) {
+	for (const accountId of snapshotAccountIds) {
 		if (!accountsById.has(accountId)) {
-			throw new Error('A saved draft refers to an account that no longer exists.');
+			throw new Error('A saved session refers to an account that no longer exists.');
 		}
 	}
 
 	return {
-		sessionId: draft.session.id,
-		createdAt: draft.session.createdAt,
-		updatedAt: draft.session.updatedAt,
-		sitDownDateText: draft.session.sitDownDate,
+		sessionId: snapshot.session.id,
+		createdAt: snapshot.session.createdAt,
+		updatedAt: snapshot.session.updatedAt,
+		sitDownDateText: snapshot.session.sitDownDate,
 		assets: orderedAccounts
 			.filter((account) => account.type === 'asset')
 			.map((account) => {
 				const record = recordsByAccountId.get(account.id);
-				if (!record) throw new Error('Saved asset draft record is missing.');
+				if (!record) throw new Error('Saved asset record is missing.');
 				return {
 					accountId: account.id,
 					recordId: record.id,
@@ -222,7 +224,13 @@ export function hydrateCockpitForm(
 			.map((account) => {
 				const record = recordsByAccountId.get(account.id);
 				const payment = paymentsByLiabilityId.get(account.id);
-				if (!record || !payment) throw new Error('Saved liability draft record is missing.');
+				if (!record || !payment) throw new Error('Saved liability record is missing.');
+				const customPaymentAmount =
+					payment.paymentMode === 'custom'
+						? 'paymentAmount' in payment
+							? payment.paymentAmount
+							: payment.customPaymentAmount
+						: undefined;
 				return {
 					recordId: record.id,
 					paymentId: payment.id,
@@ -234,13 +242,12 @@ export function hydrateCockpitForm(
 							? ''
 							: formatMoney(payment.startingAccountBalance),
 					startingStatementBalanceText:
-						payment.startingStatementBalance === undefined
+						payment.startingStatementBalance === undefined ||
+						payment.startingStatementBalance === null
 							? ''
 							: formatMoney(payment.startingStatementBalance),
 					customPaymentAmountText:
-						payment.customPaymentAmount === undefined
-							? ''
-							: formatMoney(payment.customPaymentAmount),
+						customPaymentAmount === undefined ? '' : formatMoney(customPaymentAmount),
 					confirmationId: payment.confirmationId ?? '',
 					notes: payment.notes ?? ''
 				};

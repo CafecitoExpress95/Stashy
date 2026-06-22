@@ -20,6 +20,7 @@ export type {
 	SitDownRepository,
 	SitDownRepositoryErrorCode,
 	SitDownSnapshot,
+	StoodUpCorrectionResult,
 	StoodUpSitDownSnapshot
 } from './sit-down-repository';
 export {

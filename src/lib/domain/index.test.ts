@@ -32,6 +32,7 @@ const expectedRuntimeExports = [
 	'paymentRecordIdFromString',
 	'resolveAssetThresholds',
 	'selectAccountHistory',
+	'selectArchiveSessionSummaries',
 	'selectActiveAccounts',
 	'selectArchivedAccounts',
 	'sessionIdFromString',
