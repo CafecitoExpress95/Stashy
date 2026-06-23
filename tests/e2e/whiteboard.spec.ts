@@ -88,9 +88,9 @@ test('liability details expose payments, source, confirmation, notes, and archiv
 	await expect(page.locator('.account-history-chart')).toHaveAttribute('data-chart-points', '1');
 	await page.getByRole('button', { name: 'View details for Card B on 2026-06-21' }).click();
 	const detail = page.locator('.history-point-detail');
-	await expect(detail.getByText('$5.00', { exact: true })).toBeVisible();
-	await expect(detail.getByText('Custom', { exact: true })).toBeVisible();
-	await expect(detail.getByText('Checking', { exact: true })).toBeVisible();
+	await expect(detail.getByText('$0.00', { exact: true })).toBeVisible();
+	await expect(detail.getByText('No payment', { exact: true })).toBeVisible();
+	await expect(detail.getByText('No source — not paying', { exact: true })).toBeVisible();
 	await expect(detail.getByText('WB-NEWEST', { exact: true })).toBeVisible();
 	await expect(detail.getByText('Latest Whiteboard note', { exact: true })).toBeVisible();
 });

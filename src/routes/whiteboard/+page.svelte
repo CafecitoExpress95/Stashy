@@ -180,7 +180,13 @@
 			? 'Full balance'
 			: mode === 'statement-balance'
 				? 'Statement balance'
-				: 'Custom';
+				: mode === 'custom'
+					? 'Custom'
+					: 'No payment';
+	}
+
+	function sourceAssetLabel(payment: NonNullable<AccountHistoryDatapoint['payment']>): string {
+		return payment.sourceAssetAccountName ?? 'No source — not paying';
 	}
 
 	function thresholdLabel(state: AssetThresholdState): string {
@@ -419,7 +425,7 @@
 								</div>
 								<div>
 									<dt>Source asset</dt>
-									<dd>{selectedPoint.payment.sourceAssetAccountName ?? 'Unknown account'}</dd>
+									<dd>{sourceAssetLabel(selectedPoint.payment)}</dd>
 								</div>
 								<div>
 									<dt>Confirmation ID</dt>

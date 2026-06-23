@@ -5,7 +5,7 @@ This subtree owns browser persistence boundaries and the IndexedDB implementatio
 ## Public Modules
 
 - `configuration-repository.ts`: repository interface, input contracts, and stable repository errors.
-- `sit-down-repository.ts`: draft/stood-up snapshot contracts plus list, load, lifecycle, and audited-correction repository methods.
+- `sit-down-repository.ts`: draft/stood-up snapshot contracts plus list, load, lifecycle, draft discard, and audited-correction repository methods.
 - `indexeddb-helpers.ts`: shared request, transaction, and versioned database-open helpers.
 - `schema.ts`: database name, version, stores, indexes, singleton settings ID, and ordered migrations.
 - `records.ts`: strict validation for configuration, draft, completed, and before/after audit records.
@@ -20,7 +20,7 @@ This subtree owns browser persistence boundaries and the IndexedDB implementatio
 - Every read validates persisted data. Corruption and unsupported schema values are reported, never reset.
 - Account names are globally unique case-insensitively, including archived accounts.
 - Reordering swaps active neighbors transactionally and leaves archived positions intact.
-- Draft and Stand Up writes replace one session's child-record set atomically; a draft cannot demote a stood-up session.
+- Draft and Stand Up writes replace one session's child-record set atomically; draft discard deletes only unfinished sessions and child rows without audit entries; a draft cannot demote a stood-up session.
 - Completed corrections preserve IDs, ownership, creation times, and unchanged child timestamps; changed records and exact before/after audits commit together without touching later sessions.
 - Final snapshots require resolved account/payment records; omitted statement balances are stored as `null` and present statement remainders never go below zero.
 - Browser globals and the pre-commit failure hook are injected so tests can isolate IndexedDB and prove interrupted writes preserve the prior committed snapshot.

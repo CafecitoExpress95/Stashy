@@ -104,6 +104,24 @@ describe('cockpit derivation', () => {
 		expect(result.payments[1].remainingStatementBalanceDisplay).toBe('\u2014');
 	});
 
+	it('derives no-payment rows without changing source asset projections', () => {
+		const form = freshForm();
+		enterAssetOpenings(form);
+		Object.assign(form.payments[0], {
+			paymentMode: 'no-payment',
+			startingAccountBalanceText: '$123.45',
+			startingStatementBalanceText: '$100.00'
+		});
+
+		const result = deriveCockpit(form, canonicalAccounts, settings);
+
+		expect(result.assets.map((asset) => asset.projectedFinalBalance)).toEqual([100_010, 50_000]);
+		expect(result.payments[0].paymentAmountDisplay).toBe('$0.00');
+		expect(result.payments[0].remainingAccountBalanceDisplay).toBe('$123.45');
+		expect(result.payments[0].remainingStatementBalanceDisplay).toBe('$100.00');
+		expect(result.paymentRecords[0].sourceAssetAccountId).toBeUndefined();
+	});
+
 	it('hydrates an omitted statement balance without inventing zero', () => {
 		const form = freshForm();
 		enterAssetOpenings(form);
@@ -232,6 +250,30 @@ describe('cockpit derivation', () => {
 		expect(snapshot?.paymentRecords[1].startingStatementBalance).toBeNull();
 		expect(snapshot?.paymentRecords[1].remainingStatementBalance).toBeNull();
 		expect(snapshot?.paymentRecords[0].confirmationId).toBe('A-100');
+	});
+
+	it('builds stood-up no-payment snapshots with zero amount and no source', () => {
+		const form = freshForm();
+		enterAssetOpenings(form);
+		for (const payment of form.payments) {
+			Object.assign(payment, {
+				paymentMode: 'no-payment',
+				startingAccountBalanceText: '$50.00'
+			});
+		}
+
+		const snapshot = getCockpitStandUpData(deriveCockpit(form, canonicalAccounts, settings));
+
+		expect(snapshot?.accountRecords.map((record) => record.finalBalance)).toEqual([
+			100_010, 50_000, 5_000, 5_000, 5_000
+		]);
+		expect(snapshot?.paymentRecords.every((payment) => payment.paymentMode === 'no-payment')).toBe(
+			true
+		);
+		expect(snapshot?.paymentRecords.every((payment) => payment.paymentAmount === 0)).toBe(true);
+		expect(
+			snapshot?.paymentRecords.every((payment) => payment.sourceAssetAccountId === undefined)
+		).toBe(true);
 	});
 
 	it('hydrates a stood-up custom payment with stable IDs and its resolved amount', () => {

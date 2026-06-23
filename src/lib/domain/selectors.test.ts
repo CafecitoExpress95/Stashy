@@ -102,6 +102,33 @@ describe('account history selector', () => {
 		expect(history[1].payment).toBeNull();
 	});
 
+	it('keeps no-payment history traceable without inventing a source asset', () => {
+		const paymentResult = calculatePayment({
+			...canonicalPaymentDrafts[0],
+			sourceAssetAccountId: undefined,
+			paymentMode: 'no-payment'
+		});
+		if (!paymentResult.ok) throw new Error('Expected no-payment row to calculate.');
+		const record = liabilityRecord('000000000012', canonicalSession.id, 60_030, 60_030, 0, 0);
+
+		const history = selectAccountHistory({
+			accountId: fixtureIds.cardA,
+			accounts: canonicalAccounts,
+			sessions: [canonicalSession],
+			accountRecords: [record],
+			paymentRecords: [paymentResult.value]
+		});
+
+		expect(history[0].payment).toEqual(
+			expect.objectContaining({
+				paymentMode: 'no-payment',
+				paymentAmount: 0,
+				sourceAssetAccountId: null,
+				sourceAssetAccountName: null
+			})
+		);
+	});
+
 	it('preserves unavailable statement details as null in history', () => {
 		const paymentResult = calculatePayment({
 			...canonicalPaymentDrafts[1],

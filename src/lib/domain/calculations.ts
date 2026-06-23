@@ -32,12 +32,16 @@ type CalculationReadyPayment =
 			readonly paymentMode: 'custom';
 			readonly customPaymentAmount: Money;
 			readonly startingAccountBalance: Money;
+	  })
+	| (DraftPaymentRecord & {
+			readonly paymentMode: 'no-payment';
+			readonly startingAccountBalance: Money;
 	  });
 
 function getPaymentCompletenessErrors(record: DraftPaymentRecord): DomainIssue[] {
 	const errors: DomainIssue[] = [];
 
-	if (!record.sourceAssetAccountId) {
+	if (record.paymentMode !== 'no-payment' && !record.sourceAssetAccountId) {
 		errors.push(
 			createIssue(
 				'error',
@@ -110,6 +114,8 @@ function resolvePaymentAmount(record: CalculationReadyPayment): Money {
 			return record.startingStatementBalance;
 		case 'custom':
 			return record.customPaymentAmount;
+		case 'no-payment':
+			return ZERO_MONEY;
 	}
 }
 
@@ -130,7 +136,8 @@ function buildPaymentRecord(record: CalculationReadyPayment, paymentAmount: Mone
 		updatedAt: record.updatedAt,
 		sessionId: record.sessionId,
 		liabilityAccountId: record.liabilityAccountId,
-		sourceAssetAccountId: record.sourceAssetAccountId,
+		sourceAssetAccountId:
+			record.paymentMode === 'no-payment' ? undefined : record.sourceAssetAccountId,
 		paymentMode: record.paymentMode,
 		paymentAmount,
 		startingAccountBalance: record.startingAccountBalance,
@@ -183,7 +190,10 @@ function getProjectionErrors(
 		}
 		seenLiabilityIds.add(payment.liabilityAccountId);
 
-		if (!availableAssetIds.has(payment.sourceAssetAccountId)) {
+		if (payment.paymentMode === 'no-payment') continue;
+
+		const sourceAssetAccountId = payment.sourceAssetAccountId;
+		if (!sourceAssetAccountId || !availableAssetIds.has(sourceAssetAccountId)) {
 			errors.push(
 				createIssue(
 					'error',
@@ -221,12 +231,16 @@ export function calculateProjectedAssetBalances(
 	}
 
 	for (const payment of payments) {
-		const asset = projectedBalancesByAssetId.get(payment.sourceAssetAccountId);
-		if (!asset) {
+		if (payment.paymentMode === 'no-payment') continue;
+		const sourceAssetAccountId = payment.sourceAssetAccountId;
+		const asset = sourceAssetAccountId
+			? projectedBalancesByAssetId.get(sourceAssetAccountId)
+			: undefined;
+		if (!sourceAssetAccountId || !asset) {
 			throw new Error('Projection source validation and calculation are out of sync.');
 		}
 
-		projectedBalancesByAssetId.set(payment.sourceAssetAccountId, {
+		projectedBalancesByAssetId.set(sourceAssetAccountId, {
 			...asset,
 			projectedFinalBalance: subtractMoney(asset.projectedFinalBalance, payment.paymentAmount)
 		});

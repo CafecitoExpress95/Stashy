@@ -34,7 +34,7 @@ import {
 	type StoodUpSitDownSnapshot
 } from './sit-down-repository';
 
-type WriteOperation = 'save-draft' | 'stand-up' | 'save-correction';
+type WriteOperation = 'save-draft' | 'stand-up' | 'save-correction' | 'discard-draft';
 
 type RepositoryOptions = {
 	readonly factory: IDBFactory;
@@ -353,6 +353,10 @@ export class IndexedDbSitDownRepository implements SitDownRepository {
 		return this.#enqueueWrite(() => this.#saveCorrection(snapshot));
 	}
 
+	discardDraft(sessionId: SessionId): Promise<void> {
+		return this.#enqueueWrite(() => this.#discardDraft(sessionId));
+	}
+
 	async #writeSnapshot(
 		snapshot: SitDownDraftSnapshot,
 		operation: 'save-draft'
@@ -452,6 +456,57 @@ export class IndexedDbSitDownRepository implements SitDownRepository {
 				this.#beforeCommit?.(operation, transaction);
 				await Promise.all([Promise.all(requests), completed]);
 				return saved;
+			} catch (error) {
+				try {
+					transaction.abort();
+				} catch {
+					// The transaction may already have aborted or completed.
+				}
+				await completed.catch(() => undefined);
+				throw error;
+			}
+		} catch (error) {
+			throw repositoryError(error);
+		}
+	}
+
+	async #discardDraft(sessionId: SessionId): Promise<void> {
+		try {
+			const database = await this.#getDatabase();
+			const transaction = database.transaction(
+				[SESSIONS_STORE, ACCOUNT_RECORDS_STORE, PAYMENT_RECORDS_STORE],
+				'readwrite'
+			);
+			const completed = transactionCompleted(transaction);
+			try {
+				const sessionStore = transaction.objectStore(SESSIONS_STORE);
+				const accountStore = transaction.objectStore(ACCOUNT_RECORDS_STORE);
+				const paymentStore = transaction.objectStore(PAYMENT_RECORDS_STORE);
+				const [rawSession, rawAccountRecords, rawPaymentRecords] = await Promise.all([
+					requestResult(sessionStore.get(sessionId)),
+					requestResult(accountStore.index(ACCOUNT_RECORD_SESSION_INDEX).getAll(sessionId)),
+					requestResult(paymentStore.index(PAYMENT_RECORD_SESSION_INDEX).getAll(sessionId))
+				]);
+				if (rawSession === undefined) {
+					await completed;
+					return;
+				}
+				const session = parseStoredSession(rawSession);
+				if (!session.isDraft) {
+					throw new SitDownRepositoryError(
+						'invalid-session',
+						'Only unfinished drafts can be discarded.'
+					);
+				}
+				const requests: Array<Promise<unknown>> = [requestResult(sessionStore.delete(sessionId))];
+				for (const raw of rawAccountRecords as Array<{ id: string }>) {
+					requests.push(requestResult(accountStore.delete(raw.id)));
+				}
+				for (const raw of rawPaymentRecords as Array<{ id: string }>) {
+					requests.push(requestResult(paymentStore.delete(raw.id)));
+				}
+				this.#beforeCommit?.('discard-draft', transaction);
+				await Promise.all([Promise.all(requests), completed]);
 			} catch (error) {
 				try {
 					transaction.abort();

@@ -43,6 +43,36 @@ describe('session completeness validation', () => {
 		]);
 	});
 
+	it('allows no-payment rows to stand up without source, statement, or custom amount', () => {
+		const result = validateStandUpSession({
+			session: canonicalSession,
+			accounts: canonicalAccounts,
+			accountRecords: canonicalAccountRecords,
+			paymentRecords: [
+				{
+					...canonicalPaymentDrafts[0],
+					sourceAssetAccountId: undefined,
+					paymentMode: 'no-payment',
+					customPaymentAmount: undefined,
+					startingStatementBalance: undefined
+				}
+			]
+		});
+
+		expect(result.isValid).toBe(true);
+		expect(result.errors).toEqual([]);
+		expect(result.resolvedPayments[0]).toMatchObject({
+			paymentMode: 'no-payment',
+			paymentAmount: 0,
+			remainingAccountBalance: 60_030,
+			remainingStatementBalance: null
+		});
+		expect(result.resolvedPayments[0].sourceAssetAccountId).toBeUndefined();
+		expect(result.projectedAssetBalances?.map((asset) => asset.projectedFinalBalance)).toEqual([
+			100_010, 50_000
+		]);
+	});
+
 	it('requires statement data at stand-up only when statement mode is selected', () => {
 		const result = validateStandUpSession({
 			session: canonicalSession,

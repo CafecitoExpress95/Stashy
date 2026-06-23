@@ -52,4 +52,5 @@ export interface SitDownRepository {
 	saveDraft(snapshot: SitDownDraftSnapshot): Promise<SitDownDraftSnapshot>;
 	standUp(snapshot: StoodUpSitDownSnapshot): Promise<StoodUpSitDownSnapshot>;
 	saveStoodUpCorrection(snapshot: StoodUpSitDownSnapshot): Promise<StoodUpCorrectionResult>;
+	discardDraft(sessionId: SessionId): Promise<void>;
 }

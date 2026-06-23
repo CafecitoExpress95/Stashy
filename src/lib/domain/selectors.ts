@@ -20,7 +20,7 @@ import type {
 /** Optional payment context displayed with a liability history point. */
 export type AccountHistoryPaymentDetails = {
 	readonly paymentRecordId: PaymentRecord['id'];
-	readonly sourceAssetAccountId: AccountId;
+	readonly sourceAssetAccountId: AccountId | null;
 	readonly sourceAssetAccountName: string | null;
 	readonly paymentMode: PaymentMode;
 	readonly paymentAmount: Money;
@@ -64,10 +64,12 @@ function buildPaymentDetails(
 	payment: PaymentRecord,
 	accountsById: ReadonlyMap<AccountId, Account>
 ): AccountHistoryPaymentDetails {
+	const sourceAssetAccountId = payment.sourceAssetAccountId ?? null;
 	return {
 		paymentRecordId: payment.id,
-		sourceAssetAccountId: payment.sourceAssetAccountId,
-		sourceAssetAccountName: accountsById.get(payment.sourceAssetAccountId)?.name ?? null,
+		sourceAssetAccountId,
+		sourceAssetAccountName:
+			sourceAssetAccountId === null ? null : (accountsById.get(sourceAssetAccountId)?.name ?? null),
 		paymentMode: payment.paymentMode,
 		paymentAmount: payment.paymentAmount,
 		remainingAccountBalance: payment.remainingAccountBalance,

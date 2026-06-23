@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -15,10 +16,27 @@
 	let loading = $state(true);
 	let loadError = $state('');
 	let notFound = $state(false);
+	let discardingDraft = $state(false);
 
 	onMount(() => {
 		void loadReplay();
 	});
+
+	async function discardDraft(): Promise<void> {
+		if (!snapshot?.session.isDraft || discardingDraft) return;
+		if (!window.confirm('Discard this draft sit-down and throw away its saved entries?')) return;
+		discardingDraft = true;
+		loadError = '';
+		try {
+			const sitDownRepository = createBrowserSitDownRepository();
+			await sitDownRepository.discardDraft(snapshot.session.id);
+			await goto(resolve('/archive/?discarded=1'));
+		} catch (error) {
+			loadError = error instanceof Error ? error.message : 'This draft could not be discarded.';
+		} finally {
+			discardingDraft = false;
+		}
+	}
 
 	async function loadReplay(): Promise<void> {
 		loading = true;
@@ -97,10 +115,20 @@
 				{snapshot.session.isDraft ? 'Draft' : 'Stood up'}
 			</span>
 			<a class="button secondary" href={resolve('/archive/')}>Back to Archive</a>
+			{#if snapshot.session.isDraft}
+				<button
+					class="button secondary"
+					type="button"
+					disabled={discardingDraft}
+					onclick={discardDraft}
+				>
+					{discardingDraft ? 'Discarding…' : 'Discard Draft'}
+				</button>
+			{/if}
 			<a
 				class="button primary"
 				href={resolve(`/sit-down/?session=${encodeURIComponent(snapshot.session.id)}`)}
-				>Edit Session</a
+				>{snapshot.session.isDraft ? 'Resume Draft' : 'Edit Session'}</a
 			>
 		</div>
 	</section>

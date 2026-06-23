@@ -19,8 +19,8 @@ This subtree owns SvelteKit routing and presentation orchestration.
   the static favicon, touch icon, and browser theme color.
 - `+error.svelte`: branded 404/runtime recovery with retry and home actions.
 - `+page.svelte`: branded product launchpad for current and upcoming MS-01 areas.
-- `sit-down/`: cockpit lifecycle orchestration; normal/draft sessions retain visible autosave and Stand Up, while `?session=<id>` opens completed history with explicit audited Save Corrections and abandonment warnings.
-- `archive/`: newest-first saved-session summaries; `archive/session/?session=<id>` provides read-only replay and the explicit Edit handoff.
+- `sit-down/`: cockpit lifecycle orchestration; normal/draft sessions retain visible autosave, draft discard, and Stand Up, while `?session=<id>` opens completed history with explicit audited Save Corrections and abandonment warnings.
+- `archive/`: newest-first saved-session summaries; `archive/session/?session=<id>` provides read-only replay, draft discard, and the explicit resume/edit handoff.
 - `whiteboard/`: latest stood-up account summary plus query-selected active/archived account history, Chart.js visualization, exact table, and Archive deep links.
 - `configuration/data/`: honest upcoming-phase empty state.
 - `configuration/accounts/`: Phase 2 IndexedDB-backed account and threshold configuration workspace.

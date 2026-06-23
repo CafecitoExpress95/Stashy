@@ -118,6 +118,24 @@ test('full and custom payments stand up without statement balances', async ({ pa
 	await expect(page.getByText('Not recorded', { exact: true }).first()).toBeVisible();
 });
 
+test('no-payment rows stand up without source assets or projection changes', async ({ page }) => {
+	await assetCard(page, 'Checking').getByLabel('Opening balance').fill('$1,000.10');
+	await assetCard(page, 'Savings').getByLabel('Opening balance').fill('$500.00');
+	for (const name of ['Card A', 'Card B', 'Card C']) {
+		const card = liabilityCard(page, name);
+		await card.getByLabel('Account balance').fill('$123.45');
+		await card.getByLabel('Statement balance').fill('$100.00');
+		await card.getByLabel('No payment').check();
+		await expect(card.getByLabel('No source needed')).toBeDisabled();
+	}
+
+	await expect(assetCard(page, 'Checking').getByText('$1,000.10', { exact: true })).toBeVisible();
+	await confirmStandUp(page);
+	await expect(page.getByText('No payment', { exact: true }).first()).toBeVisible();
+	await expect(page.getByText('No source — not paying', { exact: true }).first()).toBeVisible();
+	await expect(page.getByText('$0.00', { exact: true }).first()).toBeVisible();
+});
+
 test('statement mode requires its statement balance and focuses the missing field', async ({
 	page
 }) => {
@@ -178,6 +196,20 @@ test('a failed write is visible and leaves current entries available to retry', 
 	await expect(page.getByText(/Simulated storage failure/)).toBeVisible();
 	await expect(page.getByText(/current entries are still on screen/)).toBeVisible();
 	await expect(opening).toHaveValue('$123.45');
+});
+
+test('active saved drafts can be discarded into a fresh unsaved sit-down', async ({ page }) => {
+	await assetCard(page, 'Checking').getByLabel('Opening balance').fill('$100.10');
+	await expect(page.getByText('All changes autosaved in this browser.')).toBeVisible();
+	page.once('dialog', (dialog) => dialog.accept());
+	await page.getByRole('button', { name: 'Discard Draft' }).click();
+	await expect(page.getByText('Draft discarded. Fresh sit-down ready')).toBeVisible();
+	await expect(assetCard(page, 'Checking').getByLabel('Opening balance')).toHaveValue('');
+	await page.reload();
+	await expect(
+		page.getByText('New sit-down. Autosave begins after your first valid edit.')
+	).toBeVisible();
+	await expect(assetCard(page, 'Checking').getByLabel('Opening balance')).toHaveValue('');
 });
 
 test('starting a new sit-down persists a distinct blank draft', async ({ page }) => {

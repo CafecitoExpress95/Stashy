@@ -281,6 +281,94 @@ describe('sit-down lifecycle persistence', () => {
 		expect(await repository.loadLatestSession()).toEqual(saved);
 	});
 
+	it('stands up no-payment records without source assets', async () => {
+		const noPayment = stoodUpSnapshot();
+		const saved = await repository.standUp({
+			...noPayment,
+			accountRecords: noPayment.accountRecords.map((record) =>
+				record.accountId === liabilityId
+					? {
+							...record,
+							finalBalance: moneyFromMinorUnits(40_000),
+							finalStatementBalance: moneyFromMinorUnits(12_000)
+						}
+					: record
+			),
+			paymentRecords: [
+				{
+					...noPayment.paymentRecords[0],
+					sourceAssetAccountId: undefined,
+					paymentMode: 'no-payment',
+					paymentAmount: moneyFromMinorUnits(0),
+					remainingAccountBalance: moneyFromMinorUnits(40_000),
+					startingStatementBalance: moneyFromMinorUnits(12_000),
+					remainingStatementBalance: moneyFromMinorUnits(12_000)
+				}
+			]
+		});
+
+		expect(saved.paymentRecords[0].sourceAssetAccountId).toBeUndefined();
+		expect(await repository.loadLatestSession()).toEqual(saved);
+	});
+
+	it('discards drafts and their child records without audit noise', async () => {
+		await repository.saveDraft(draftSnapshot());
+		await repository.discardDraft(sessionId);
+		expect(await repository.loadSession(sessionId)).toBeNull();
+		const database = await openDatabase(factory);
+		const transaction = database.transaction(
+			[SESSIONS_STORE, ACCOUNT_RECORDS_STORE, PAYMENT_RECORDS_STORE, AUDIT_ENTRIES_STORE],
+			'readonly'
+		);
+		const counts = await Promise.all([
+			new Promise<number>((resolve) => {
+				const request = transaction.objectStore(SESSIONS_STORE).count();
+				request.onsuccess = () => resolve(request.result);
+			}),
+			new Promise<number>((resolve) => {
+				const request = transaction.objectStore(ACCOUNT_RECORDS_STORE).count();
+				request.onsuccess = () => resolve(request.result);
+			}),
+			new Promise<number>((resolve) => {
+				const request = transaction.objectStore(PAYMENT_RECORDS_STORE).count();
+				request.onsuccess = () => resolve(request.result);
+			}),
+			new Promise<number>((resolve) => {
+				const request = transaction.objectStore(AUDIT_ENTRIES_STORE).count();
+				request.onsuccess = () => resolve(request.result);
+			})
+		]);
+		expect(counts).toEqual([0, 0, 0, 0]);
+		database.close();
+	});
+
+	it('treats missing draft discard as a no-op', async () => {
+		await expect(repository.discardDraft(sessionId)).resolves.toBeUndefined();
+		expect(await repository.listSessions()).toEqual([]);
+	});
+
+	it('rejects discarding stood-up sessions', async () => {
+		const saved = await repository.standUp(stoodUpSnapshot());
+		await expect(repository.discardDraft(saved.session.id)).rejects.toMatchObject({
+			code: 'invalid-session'
+		});
+		expect(await repository.loadSession(saved.session.id)).toEqual(saved);
+	});
+
+	it('leaves the prior draft intact when discard is interrupted', async () => {
+		const original = await repository.saveDraft(draftSnapshot());
+		const failing = new IndexedDbSitDownRepository({
+			factory,
+			beforeCommit(operation, transaction) {
+				if (operation === 'discard-draft') transaction.abort();
+			}
+		});
+		await expect(failing.discardDraft(sessionId)).rejects.toMatchObject({
+			code: 'storage-failed'
+		});
+		expect(await repository.loadSession(sessionId)).toEqual(original);
+	});
+
 	it('repeated Stand Up writes preserve IDs without duplicate records', async () => {
 		await repository.standUp(stoodUpSnapshot());
 		await repository.standUp(stoodUpSnapshot());

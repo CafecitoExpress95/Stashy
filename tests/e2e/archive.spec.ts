@@ -36,6 +36,7 @@ test('Archive is newest-first with balanced summaries and read-only replay', asy
 	await expect(page.getByText('$25.00', { exact: true })).toBeVisible();
 	await expect(page.locator('input, select, textarea')).toHaveCount(0);
 	await expect(page.getByRole('link', { name: 'Edit Session' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Discard Draft' })).toHaveCount(0);
 });
 
 test('a draft is unmistakable in replay and opens the draft lifecycle', async ({ page }) => {
@@ -43,11 +44,24 @@ test('a draft is unmistakable in replay and opens the draft lifecycle', async ({
 	await archiveCard(page, '2026-06-20').click();
 	await expect(page.getByText('Draft', { exact: true })).toBeVisible();
 	await expect(page.getByText('Not selected', { exact: true }).first()).toBeVisible();
-	await page.getByRole('link', { name: 'Edit Session' }).click();
+	await page.getByRole('link', { name: 'Resume Draft' }).click();
 	await expect(page.getByRole('heading', { level: 1, name: 'Sit Down' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Save Draft' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Stand Up' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Save Corrections' })).toHaveCount(0);
+});
+
+test('draft replay can discard the draft without touching completed history', async ({ page }) => {
+	await page.goto('/archive/session/?session=' + archiveSessionIds.draft);
+	await expect(page.getByText('Draft', { exact: true })).toBeVisible();
+	page.once('dialog', (dialog) => dialog.accept());
+	await page.getByRole('button', { name: 'Discard Draft' }).click();
+	await expect(page).toHaveURL(/\/archive\/\?discarded=1/);
+	await expect(page.getByText('Draft discarded.')).toBeVisible();
+	await expect(page.locator('.session-archive-card')).toHaveCount(2);
+	await expect(archiveCard(page, '2026-06-20')).toHaveCount(0);
+	await expect(archiveCard(page, '2026-06-21')).toBeVisible();
+	await expect(archiveCard(page, '2026-06-18')).toBeVisible();
 });
 
 test('confirmation corrections save once with exact before and after audit values', async ({

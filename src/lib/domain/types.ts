@@ -80,7 +80,7 @@ export type Session = RecordTimestamps & {
 };
 
 /** The rule used to resolve a liability's payment amount. */
-export type PaymentMode = 'full-balance' | 'statement-balance' | 'custom';
+export type PaymentMode = 'full-balance' | 'statement-balance' | 'custom' | 'no-payment';
 
 type PaymentRecordDetails = RecordTimestamps & {
 	readonly id: PaymentRecordId;
@@ -104,7 +104,7 @@ export type DraftPaymentRecord = PaymentRecordDetails & {
 
 /** A complete payment row with all resolved and remaining balances saved. */
 export type PaymentRecord = PaymentRecordDetails & {
-	readonly sourceAssetAccountId: AccountId;
+	readonly sourceAssetAccountId?: AccountId;
 	readonly paymentMode: PaymentMode;
 	readonly paymentAmount: Money;
 	readonly startingAccountBalance: Money;

@@ -65,6 +65,7 @@
 	let startMessage = $state('');
 	let editingCompleted = $state(false);
 	let correctionSaving = $state(false);
+	let discardingDraft = $state(false);
 	let standUpDialog = $state<HTMLDialogElement>();
 	let editRevision = 0;
 	let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -87,7 +88,9 @@
 	let hasRequiredAccounts = $derived(
 		form !== null && form.assets.length > 0 && form.payments.length > 0
 	);
-	let busy = $derived(pendingSaves > 0 || confirmingStandUp || startingNew || correctionSaving);
+	let busy = $derived(
+		pendingSaves > 0 || confirmingStandUp || startingNew || correctionSaving || discardingDraft
+	);
 	let hasUnsavedCorrection = $derived(editingCompleted && editRevision > 0);
 
 	beforeNavigate((navigation) => {
@@ -239,6 +242,10 @@
 				break;
 			case 'paymentMode':
 				payment.paymentMode = value as PaymentMode | '';
+				if (payment.paymentMode === 'no-payment') {
+					payment.sourceAssetAccountId = '';
+					payment.customPaymentAmountText = '';
+				}
 				break;
 			case 'startingAccountBalanceText':
 				payment.startingAccountBalanceText = value;
@@ -277,7 +284,11 @@
 		const controlId = 'payment-' + payment.paymentId + '-' + field;
 		const parsed = parsedFieldError(controlId);
 		if (parsed || !standUpAttempted) return parsed;
-		if (field === 'sourceAssetAccountId' && !payment.sourceAssetAccountId) {
+		if (
+			field === 'sourceAssetAccountId' &&
+			payment.paymentMode !== 'no-payment' &&
+			!payment.sourceAssetAccountId
+		) {
 			return 'Choose the asset paying this liability.';
 		}
 		if (field === 'paymentMode' && !payment.paymentMode) {
@@ -424,6 +435,35 @@
 					: 'Corrections could not be saved. Your entries remain on screen.';
 		} finally {
 			correctionSaving = false;
+		}
+	}
+
+	async function discardActiveDraft(): Promise<void> {
+		if (editingCompleted || !form || !sitDownRepository || discardingDraft || busy) return;
+		if (!window.confirm('Discard this draft sit-down and throw away its saved entries?')) return;
+		clearAutosave();
+		discardingDraft = true;
+		actionState = 'saving';
+		actionMessage = 'Discarding this draft…';
+		try {
+			await saveChain;
+			await sitDownRepository.discardDraft(form.sessionId);
+			form = newForm();
+			completedSnapshot = null;
+			editingCompleted = false;
+			editRevision = 0;
+			standUpAttempted = false;
+			actionState = 'unsaved';
+			actionMessage = 'Draft discarded. Fresh sit-down ready; nothing has been saved yet.';
+			await goto(resolve('/sit-down/'), { replaceState: true, noScroll: true, keepFocus: true });
+		} catch (error) {
+			actionState = 'failed';
+			actionMessage =
+				error instanceof Error
+					? error.message + ' The draft was not discarded.'
+					: 'The draft could not be discarded.';
+		} finally {
+			discardingDraft = false;
 		}
 	}
 
@@ -625,6 +665,9 @@
 					{correctionSaving ? 'Saving…' : 'Save Corrections'}
 				</button>
 			{:else}
+				<button class="button secondary" type="button" disabled={busy} onclick={discardActiveDraft}>
+					{discardingDraft ? 'Discarding…' : 'Discard Draft'}
+				</button>
 				<button class="button secondary" type="button" disabled={busy} onclick={saveDraft}>
 					{pendingSaves > 0 ? 'Saving…' : 'Save Draft'}
 				</button>

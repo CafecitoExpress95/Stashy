@@ -72,6 +72,23 @@ describe('payment calculations', () => {
 		expect(custom.ok && custom.value.paymentAmount).toBe(12_345);
 	});
 
+	it('records no-payment rows as zero dollars without a source asset', () => {
+		const result = calculatePayment({
+			...canonicalPaymentDrafts[0],
+			sourceAssetAccountId: undefined,
+			paymentMode: 'no-payment',
+			startingStatementBalance: moneyFromMinorUnits(12_345)
+		});
+
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(result.value.sourceAssetAccountId).toBeUndefined();
+			expect(result.value.paymentAmount).toBe(0);
+			expect(result.value.remainingAccountBalance).toBe(60_030);
+			expect(result.value.remainingStatementBalance).toBe(12_345);
+		}
+	});
+
 	it('allows full and custom payments to omit statement data', () => {
 		const full = calculatePayment({
 			...canonicalPaymentDrafts[1],
@@ -141,6 +158,21 @@ describe('asset projections', () => {
 				}
 			]);
 		}
+	});
+
+	it('leaves asset projections unchanged for no-payment rows', () => {
+		const result = calculatePayment({
+			...canonicalPaymentDrafts[0],
+			sourceAssetAccountId: undefined,
+			paymentMode: 'no-payment'
+		});
+		if (!result.ok) throw new Error('Expected no-payment row to calculate.');
+
+		const projection = calculateProjectedAssetBalances(canonicalAssetOpenings, [result.value]);
+
+		expect(projection.ok && projection.value.map((asset) => asset.projectedFinalBalance)).toEqual([
+			100_010, 50_000
+		]);
 	});
 
 	it('subtracts each payment from its own source asset', () => {

@@ -270,7 +270,7 @@ export function parseStoredDraftPaymentRecord(value: unknown): DraftPaymentRecor
 	const paymentMode = value.paymentMode as PaymentMode | undefined;
 	if (
 		paymentMode !== undefined &&
-		!['full-balance', 'statement-balance', 'custom'].includes(paymentMode)
+		!['full-balance', 'statement-balance', 'custom', 'no-payment'].includes(paymentMode)
 	) {
 		return corrupt('Stored payment mode is invalid.');
 	}
@@ -320,8 +320,14 @@ export function parseStoredAccountRecord(value: unknown): AccountRecord {
 export function parseStoredPaymentRecord(value: unknown): PaymentRecord {
 	if (!isRecord(value)) return corrupt('Stored payment record must be an object.');
 	const draft = parseStoredDraftPaymentRecord({ ...value, startingStatementBalance: undefined });
-	if (!draft.sourceAssetAccountId || !draft.paymentMode) {
-		return corrupt('Completed payment source and mode are required.');
+	if (!draft.paymentMode) {
+		return corrupt('Completed payment mode is required.');
+	}
+	if (draft.paymentMode !== 'no-payment' && !draft.sourceAssetAccountId) {
+		return corrupt('Completed paid payment source is required.');
+	}
+	if (draft.paymentMode === 'no-payment' && draft.sourceAssetAccountId !== undefined) {
+		return corrupt('Completed no-payment rows must not store a source asset.');
 	}
 	return {
 		...draft,

@@ -301,7 +301,7 @@ export async function seedWhiteboardHistory(page: Page): Promise<void> {
 							timestamp: '2026-06-21T12:00:00.000Z',
 							checking: [1_000, -500],
 							cardA: [3_000, 2_000, 2_500, 1_500, 1_000],
-							cardB: [5_000, 4_500, null, null, 500]
+							cardB: [5_000, 5_000, null, null, 0]
 						}
 					] as const;
 
@@ -333,14 +333,14 @@ export async function seedWhiteboardHistory(page: Page): Promise<void> {
 						sessionId: string,
 						liabilityAccountId: string,
 						values: readonly [number, number, number | null, number | null, number],
-						timestamp: string
+						timestamp: string,
+						mode: 'custom' | 'no-payment' = 'custom'
 					) => {
-						paymentRecords.put({
+						const record: Record<string, unknown> = {
 							id: '70000000-0000-4000-8000-' + String(index * 10 + accountIndex).padStart(12, '0'),
 							sessionId,
 							liabilityAccountId,
-							sourceAssetAccountId: accountIds.checking,
-							paymentMode: 'custom',
+							paymentMode: mode,
 							paymentAmount: values[4],
 							startingAccountBalance: values[0],
 							startingStatementBalance: values[2],
@@ -350,7 +350,11 @@ export async function seedWhiteboardHistory(page: Page): Promise<void> {
 							notes: index === 4 ? 'Latest Whiteboard note' : 'Historical Whiteboard note',
 							createdAt: timestamp,
 							updatedAt: timestamp
-						});
+						};
+						if (mode !== 'no-payment') {
+							record.sourceAssetAccountId = accountIds.checking;
+						}
+						paymentRecords.put(record);
 					};
 
 					completed.forEach((item, zeroIndex) => {
@@ -386,7 +390,15 @@ export async function seedWhiteboardHistory(page: Page): Promise<void> {
 								item.timestamp,
 								[item.cardB[2], item.cardB[3]]
 							);
-							addPayment(index, 4, item.id, accountIds.cardB, item.cardB, item.timestamp);
+							addPayment(
+								index,
+								4,
+								item.id,
+								accountIds.cardB,
+								item.cardB,
+								item.timestamp,
+								'no-payment'
+							);
 						}
 					});
 

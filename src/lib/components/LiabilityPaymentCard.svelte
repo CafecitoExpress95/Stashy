@@ -25,6 +25,7 @@
 	};
 
 	let { account, sourceAssets, form, view, fieldError, onChange }: Props = $props();
+	let isNoPayment = $derived(form.paymentMode === 'no-payment');
 	let financialIssues = $derived(
 		view.issues.filter((issue) =>
 			[
@@ -84,20 +85,23 @@
 
 	<div class="payment-decision-grid">
 		<label for="payment-{form.paymentId}-sourceAssetAccountId">
-			<span>Pay from</span>
+			<span>{isNoPayment ? 'No source needed' : 'Pay from'}</span>
 			<select
 				id="payment-{form.paymentId}-sourceAssetAccountId"
-				value={form.sourceAssetAccountId}
-				aria-invalid={fieldError('sourceAssetAccountId') ? 'true' : undefined}
+				value={isNoPayment ? '' : form.sourceAssetAccountId}
+				disabled={isNoPayment}
+				aria-invalid={!isNoPayment && fieldError('sourceAssetAccountId') ? 'true' : undefined}
 				onchange={(event) => onChange('sourceAssetAccountId', event.currentTarget.value)}
 			>
-				<option value="">Choose a source asset</option>
+				<option value="">{isNoPayment ? 'No source — not paying' : 'Choose a source asset'}</option>
 				{#each sourceAssets as asset (asset.id)}
 					<option value={asset.id}>{asset.name}</option>
 				{/each}
 			</select>
-			{#if fieldError('sourceAssetAccountId')}
+			{#if !isNoPayment && fieldError('sourceAssetAccountId')}
 				<small class="field-error">{fieldError('sourceAssetAccountId')}</small>
+			{:else if isNoPayment}
+				<small>No money will leave a source asset for this liability.</small>
 			{/if}
 		</label>
 
@@ -134,6 +138,16 @@
 					/>
 					<span>Custom</span>
 				</label>
+				<label class:active={form.paymentMode === 'no-payment'}>
+					<input
+						type="radio"
+						name="payment-mode-{form.paymentId}"
+						value="no-payment"
+						checked={form.paymentMode === 'no-payment'}
+						onchange={() => onChange('paymentMode', 'no-payment')}
+					/>
+					<span>No payment</span>
+				</label>
 			</div>
 			{#if fieldError('paymentMode')}
 				<small class="field-error">{fieldError('paymentMode')}</small>
@@ -161,7 +175,13 @@
 			<div class="calculated-field">
 				<span>Payment amount</span>
 				<strong>{view.paymentAmountDisplay}</strong>
-				<small>{form.paymentMode ? 'Set by payment mode' : 'Choose a payment mode'}</small>
+				<small>
+					{form.paymentMode === 'no-payment'
+						? 'No money leaves an asset'
+						: form.paymentMode
+							? 'Set by payment mode'
+							: 'Choose a payment mode'}
+				</small>
 			</div>
 		{/if}
 		<div class="calculated-field remaining-account">

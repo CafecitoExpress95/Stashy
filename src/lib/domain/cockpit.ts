@@ -330,7 +330,10 @@ export function deriveCockpit(
 			id: payment.paymentId,
 			sessionId: form.sessionId,
 			liabilityAccountId: payment.liabilityAccountId,
-			sourceAssetAccountId: payment.sourceAssetAccountId || undefined,
+			sourceAssetAccountId:
+				payment.paymentMode === 'no-payment'
+					? undefined
+					: payment.sourceAssetAccountId || undefined,
 			paymentMode: payment.paymentMode || undefined,
 			customPaymentAmount: customAmount.value,
 			startingAccountBalance: accountBalance.value,
@@ -451,7 +454,7 @@ export function deriveCockpit(
 		}
 	}
 	for (const payment of form.payments) {
-		if (!payment.sourceAssetAccountId) {
+		if (payment.paymentMode !== 'no-payment' && !payment.sourceAssetAccountId) {
 			standUpControls.push(paymentControlId(payment.paymentId, 'sourceAssetAccountId'));
 		}
 		if (!payment.startingAccountBalanceText.trim()) {

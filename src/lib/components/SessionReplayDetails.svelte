@@ -17,8 +17,10 @@
 
 	let { snapshot, accounts }: Props = $props();
 
-	function accountName(accountId: string): string {
-		return accounts.find((account) => account.id === accountId)?.name ?? 'Unknown account';
+	function accountName(accountId: string | undefined): string {
+		return accountId
+			? (accounts.find((account) => account.id === accountId)?.name ?? 'Unknown account')
+			: 'No source — not paying';
 	}
 
 	function accountFor(record: DraftAccountRecord): Account | undefined {
@@ -44,7 +46,9 @@
 				? 'Statement balance'
 				: mode === 'custom'
 					? 'Custom'
-					: 'Not selected';
+					: mode === 'no-payment'
+						? 'No payment'
+						: 'Not selected';
 	}
 
 	function paymentAmount(payment: ReplayPayment): string {
@@ -117,11 +121,7 @@
 							</div>
 							<div>
 								<dt>From</dt>
-								<dd>
-									{payment.sourceAssetAccountId
-										? accountName(payment.sourceAssetAccountId)
-										: 'Not selected'}
-								</dd>
+								<dd>{accountName(payment.sourceAssetAccountId)}</dd>
 							</div>
 							<div>
 								<dt>Mode</dt>

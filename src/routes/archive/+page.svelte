@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { formatMoney, selectArchiveSessionSummaries, type Account } from '$lib/domain';
 	import {
@@ -12,9 +13,11 @@
 	let snapshots = $state<readonly SitDownSnapshot[]>([]);
 	let loading = $state(true);
 	let loadError = $state('');
+	let draftDiscarded = $state(false);
 	let summaries = $derived(selectArchiveSessionSummaries(snapshots, accounts));
 
 	onMount(() => {
+		draftDiscarded = page.url.searchParams.get('discarded') === '1';
 		void loadArchive();
 	});
 
@@ -46,6 +49,10 @@
 </script>
 
 <svelte:head><title>Check Archive - Stashy</title></svelte:head>
+
+{#if draftDiscarded}
+	<div class="panel correction-success" role="status">Draft discarded.</div>
+{/if}
 
 <section class="page-intro archive-intro">
 	<div>
