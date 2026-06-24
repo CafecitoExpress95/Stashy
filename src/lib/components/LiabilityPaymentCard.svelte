@@ -35,6 +35,10 @@
 			].includes(issue.code)
 		)
 	);
+
+	function togglePaymentMode(mode: 'full-balance' | 'statement-balance' | 'custom'): void {
+		onChange('paymentMode', form.paymentMode === mode ? 'no-payment' : mode);
+	}
 </script>
 
 <article class="liability-card" aria-labelledby="liability-{account.id}-title">
@@ -105,49 +109,42 @@
 			{/if}
 		</label>
 
-		<fieldset id="payment-{form.paymentId}-paymentMode" tabindex="-1">
+		<fieldset
+			id="payment-{form.paymentId}-paymentMode"
+			tabindex="-1"
+			aria-describedby="payment-{form.paymentId}-paymentModeHelp"
+		>
 			<legend>Payment mode</legend>
+			<p id="payment-{form.paymentId}-paymentModeHelp" class="mode-helper">
+				{isNoPayment
+					? 'No payment is assumed. Choose a paid mode only if money will leave an asset.'
+					: 'Press the active paid mode again to return to No payment.'}
+			</p>
 			<div class="mode-choices">
-				<label class:active={form.paymentMode === 'full-balance'}>
-					<input
-						type="radio"
-						name="payment-mode-{form.paymentId}"
-						value="full-balance"
-						checked={form.paymentMode === 'full-balance'}
-						onchange={() => onChange('paymentMode', 'full-balance')}
-					/>
-					<span>Full balance</span>
-				</label>
-				<label class:active={form.paymentMode === 'statement-balance'}>
-					<input
-						type="radio"
-						name="payment-mode-{form.paymentId}"
-						value="statement-balance"
-						checked={form.paymentMode === 'statement-balance'}
-						onchange={() => onChange('paymentMode', 'statement-balance')}
-					/>
-					<span>Statement</span>
-				</label>
-				<label class:active={form.paymentMode === 'custom'}>
-					<input
-						type="radio"
-						name="payment-mode-{form.paymentId}"
-						value="custom"
-						checked={form.paymentMode === 'custom'}
-						onchange={() => onChange('paymentMode', 'custom')}
-					/>
-					<span>Custom</span>
-				</label>
-				<label class:active={form.paymentMode === 'no-payment'}>
-					<input
-						type="radio"
-						name="payment-mode-{form.paymentId}"
-						value="no-payment"
-						checked={form.paymentMode === 'no-payment'}
-						onchange={() => onChange('paymentMode', 'no-payment')}
-					/>
-					<span>No payment</span>
-				</label>
+				<button
+					type="button"
+					class:active={form.paymentMode === 'full-balance'}
+					aria-pressed={form.paymentMode === 'full-balance'}
+					onclick={() => togglePaymentMode('full-balance')}
+				>
+					Full balance
+				</button>
+				<button
+					type="button"
+					class:active={form.paymentMode === 'statement-balance'}
+					aria-pressed={form.paymentMode === 'statement-balance'}
+					onclick={() => togglePaymentMode('statement-balance')}
+				>
+					Statement
+				</button>
+				<button
+					type="button"
+					class:active={form.paymentMode === 'custom'}
+					aria-pressed={form.paymentMode === 'custom'}
+					onclick={() => togglePaymentMode('custom')}
+				>
+					Custom
+				</button>
 			</div>
 			{#if fieldError('paymentMode')}
 				<small class="field-error">{fieldError('paymentMode')}</small>
@@ -176,11 +173,7 @@
 				<span>Payment amount</span>
 				<strong>{view.paymentAmountDisplay}</strong>
 				<small>
-					{form.paymentMode === 'no-payment'
-						? 'No money leaves an asset'
-						: form.paymentMode
-							? 'Set by payment mode'
-							: 'Choose a payment mode'}
+					{form.paymentMode === 'no-payment' ? 'No money leaves an asset' : 'Set by payment mode'}
 				</small>
 			</div>
 		{/if}

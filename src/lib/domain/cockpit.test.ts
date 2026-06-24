@@ -48,7 +48,7 @@ function enterAssetOpenings(form: ReturnType<typeof freshForm>) {
 }
 
 describe('cockpit initialization', () => {
-	it('uses configured active ordering and leaves payment choices explicit', () => {
+	it('uses configured active ordering and defaults payment choices to no-payment', () => {
 		const form = freshForm();
 		expect(form.assets.map((asset) => asset.accountId)).toEqual([
 			canonicalAccounts[0].id,
@@ -60,7 +60,7 @@ describe('cockpit initialization', () => {
 			canonicalAccounts[4].id
 		]);
 		expect(form.payments.every((payment) => payment.sourceAssetAccountId === '')).toBe(true);
-		expect(form.payments.every((payment) => payment.paymentMode === '')).toBe(true);
+		expect(form.payments.every((payment) => payment.paymentMode === 'no-payment')).toBe(true);
 	});
 });
 
@@ -78,7 +78,7 @@ describe('cockpit derivation', () => {
 		const result = deriveCockpit(form, canonicalAccounts, settings);
 		expect(result.assets.map((asset) => asset.projectedFinalBalance)).toEqual([59_990, 50_000]);
 		expect(result.payments[0].paymentAmountDisplay).toBe('$400.20');
-		expect(result.payments[1].paymentAmountDisplay).toBe('—');
+		expect(result.payments[1].paymentAmountDisplay).toBe('$0.00');
 		expect(result.draftValidation?.projectedAssetBalances).not.toBeNull();
 		expect(result.standUpValidation?.projectedAssetBalances).toBeNull();
 	});
@@ -120,6 +120,36 @@ describe('cockpit derivation', () => {
 		expect(result.payments[0].remainingAccountBalanceDisplay).toBe('$123.45');
 		expect(result.payments[0].remainingStatementBalanceDisplay).toBe('$100.00');
 		expect(result.paymentRecords[0].sourceAssetAccountId).toBeUndefined();
+	});
+
+	it('hydrates drafts with omitted payment modes as explicit no-payment', () => {
+		const form = freshForm();
+		const draft = getCockpitDraftData(deriveCockpit(form, canonicalAccounts, settings));
+		if (!draft) throw new Error('Expected a saveable draft.');
+
+		const legacyDraft = {
+			...draft,
+			paymentRecords: draft.paymentRecords.map((payment, index) =>
+				index === 0
+					? {
+							...payment,
+							paymentMode: undefined,
+							sourceAssetAccountId: canonicalAccounts[0].id,
+							customPaymentAmount: undefined
+						}
+					: payment
+			)
+		};
+
+		const hydrated = hydrateCockpitForm(legacyDraft, canonicalAccounts);
+		expect(hydrated.payments[0]).toMatchObject({
+			paymentMode: 'no-payment',
+			sourceAssetAccountId: '',
+			customPaymentAmountText: ''
+		});
+		const rederived = deriveCockpit(hydrated, canonicalAccounts, settings);
+		expect(rederived.paymentRecords[0].paymentMode).toBe('no-payment');
+		expect(rederived.paymentRecords[0].sourceAssetAccountId).toBeUndefined();
 	});
 
 	it('hydrates an omitted statement balance without inventing zero', () => {

@@ -241,7 +241,7 @@
 				payment.sourceAssetAccountId = value ? accountIdFromString(value) : '';
 				break;
 			case 'paymentMode':
-				payment.paymentMode = value as PaymentMode | '';
+				payment.paymentMode = value as PaymentMode;
 				if (payment.paymentMode === 'no-payment') {
 					payment.sourceAssetAccountId = '';
 					payment.customPaymentAmountText = '';
@@ -290,9 +290,6 @@
 			!payment.sourceAssetAccountId
 		) {
 			return 'Choose the asset paying this liability.';
-		}
-		if (field === 'paymentMode' && !payment.paymentMode) {
-			return 'Choose a payment mode.';
 		}
 		if (field === 'startingAccountBalance' && !payment.startingAccountBalanceText.trim()) {
 			return 'Enter the account balance.';

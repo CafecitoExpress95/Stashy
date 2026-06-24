@@ -889,7 +889,7 @@ textarea:focus-visible {
 	gap: 6px;
 }
 
-.mode-choices label {
+.mode-choices button {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -905,20 +905,19 @@ textarea:focus-visible {
 	cursor: pointer;
 }
 
-.mode-choices label.active {
+.mode-choices button.active {
 	border-color: var(--brand);
 	background: var(--brand-soft);
 	color: var(--brand-dark);
 }
 
-.mode-choices input {
-	position: absolute;
-	width: 1px;
-	min-height: 1px;
-	opacity: 0;
+.mode-helper {
+	margin: 0 0 8px;
+	color: var(--muted);
+	font-size: 0.82rem;
 }
 
-.mode-choices label:has(input:focus-visible) {
+.mode-choices button:focus-visible {
 	outline: 3px solid #e3a124;
 	outline-offset: 3px;
 }

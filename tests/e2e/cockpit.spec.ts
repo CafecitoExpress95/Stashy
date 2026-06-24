@@ -21,21 +21,21 @@ async function enterCanonicalScenario(page: Page): Promise<void> {
 	const cardA = liabilityCard(page, 'Card A');
 	await cardA.getByLabel('Account balance').fill('$600.30');
 	await cardA.getByLabel('Statement balance').fill('$400.20');
+	await cardA.getByRole('button', { name: 'Statement' }).click();
 	await cardA.getByLabel('Pay from').selectOption(cockpitAccountIds.checking);
-	await cardA.getByLabel('Statement', { exact: true }).check();
 	await cardA.getByLabel('Confirmation ID').fill('A-100');
 
 	const cardB = liabilityCard(page, 'Card B');
 	await cardB.getByLabel('Account balance').fill('$250.00');
 	await cardB.getByLabel('Statement balance').fill('$100.00');
+	await cardB.getByRole('button', { name: 'Full balance' }).click();
 	await cardB.getByLabel('Pay from').selectOption(cockpitAccountIds.checking);
-	await cardB.getByLabel('Full balance').check();
 
 	const cardC = liabilityCard(page, 'Card C');
 	await cardC.getByLabel('Account balance').fill('$25.00');
 	await cardC.getByLabel('Statement balance').fill('$10.00');
+	await cardC.getByRole('button', { name: 'Custom' }).click();
 	await cardC.getByLabel('Pay from').selectOption(cockpitAccountIds.checking);
-	await cardC.getByLabel('Custom').check();
 	await cardC.getByLabel('Payment amount').fill('$25.10');
 	await cardC.getByLabel('Notes').fill('Intentional ten-cent overpayment');
 }
@@ -119,13 +119,20 @@ test('full and custom payments stand up without statement balances', async ({ pa
 });
 
 test('no-payment rows stand up without source assets or projection changes', async ({ page }) => {
+	const firstCard = liabilityCard(page, 'Card A');
+	await expect(firstCard.getByLabel('No source needed')).toBeDisabled();
+	await expect(firstCard.getByText('$0.00', { exact: true })).toBeVisible();
+	await expect(firstCard.getByRole('button', { name: 'Full balance' })).toHaveAttribute(
+		'aria-pressed',
+		'false'
+	);
+
 	await assetCard(page, 'Checking').getByLabel('Opening balance').fill('$1,000.10');
 	await assetCard(page, 'Savings').getByLabel('Opening balance').fill('$500.00');
 	for (const name of ['Card A', 'Card B', 'Card C']) {
 		const card = liabilityCard(page, name);
 		await card.getByLabel('Account balance').fill('$123.45');
 		await card.getByLabel('Statement balance').fill('$100.00');
-		await card.getByLabel('No payment').check();
 		await expect(card.getByLabel('No source needed')).toBeDisabled();
 	}
 
@@ -157,15 +164,21 @@ test('mode and source changes move projections without stale or duplicate subtra
 	const card = liabilityCard(page, 'Card A');
 	await card.getByLabel('Account balance').fill('$600.30');
 	await card.getByLabel('Statement balance').fill('$400.20');
+	await card.getByRole('button', { name: 'Full balance' }).click();
 	await card.getByLabel('Pay from').selectOption(cockpitAccountIds.checking);
-	await card.getByLabel('Full balance').check();
 	await expect(assetCard(page, 'Checking').getByText('$399.80', { exact: true })).toBeVisible();
 
-	await card.getByLabel('Statement', { exact: true }).check();
+	await card.getByRole('button', { name: 'Statement' }).click();
 	await expect(assetCard(page, 'Checking').getByText('$599.90', { exact: true })).toBeVisible();
 	await card.getByLabel('Pay from').selectOption(cockpitAccountIds.savings);
 	await expect(assetCard(page, 'Checking').getByText('$1,000.10', { exact: true })).toBeVisible();
 	await expect(assetCard(page, 'Savings').getByText('$99.80', { exact: true })).toBeVisible();
+
+	await card.getByRole('button', { name: 'Statement' }).click();
+	await expect(card.getByLabel('No source needed')).toBeDisabled();
+	await expect(assetCard(page, 'Savings').getByText('$500.00', { exact: true })).toBeVisible();
+	await card.getByRole('button', { name: 'Full balance' }).click();
+	await expect(card.getByLabel('Pay from')).toHaveValue('');
 });
 
 test('invalid text pauses autosave without replacing the last valid draft', async ({ page }) => {
@@ -232,8 +245,8 @@ test('mobile keeps projections and actions reachable without horizontal overflow
 	await assetCard(page, 'Checking').getByLabel('Opening balance').fill('$100.00');
 	const card = liabilityCard(page, 'Card A');
 	await card.getByLabel('Account balance').fill('$50.00');
+	await card.getByRole('button', { name: 'Full balance' }).click();
 	await card.getByLabel('Pay from').selectOption(cockpitAccountIds.checking);
-	await card.getByLabel('Full balance').check();
 	await liabilityCard(page, 'Card C').scrollIntoViewIfNeeded();
 
 	const dock = page.getByRole('complementary', { name: 'Live asset projections' });

@@ -43,7 +43,7 @@ export type CockpitPaymentForm = {
 	readonly paymentId: PaymentRecordId;
 	readonly liabilityAccountId: AccountId;
 	sourceAssetAccountId: AccountId | '';
-	paymentMode: PaymentMode | '';
+	paymentMode: PaymentMode;
 	startingAccountBalanceText: string;
 	startingStatementBalanceText: string;
 	customPaymentAmountText: string;
@@ -169,7 +169,7 @@ export function createCockpitForm(
 			paymentId: ids.paymentRecordId(),
 			liabilityAccountId: account.id,
 			sourceAssetAccountId: '',
-			paymentMode: '',
+			paymentMode: 'no-payment',
 			startingAccountBalanceText: '',
 			startingStatementBalanceText: '',
 			customPaymentAmountText: '',
@@ -225,8 +225,9 @@ export function hydrateCockpitForm(
 				const record = recordsByAccountId.get(account.id);
 				const payment = paymentsByLiabilityId.get(account.id);
 				if (!record || !payment) throw new Error('Saved liability record is missing.');
+				const paymentMode = payment.paymentMode ?? 'no-payment';
 				const customPaymentAmount =
-					payment.paymentMode === 'custom'
+					paymentMode === 'custom'
 						? 'paymentAmount' in payment
 							? payment.paymentAmount
 							: payment.customPaymentAmount
@@ -235,8 +236,9 @@ export function hydrateCockpitForm(
 					recordId: record.id,
 					paymentId: payment.id,
 					liabilityAccountId: account.id,
-					sourceAssetAccountId: payment.sourceAssetAccountId ?? '',
-					paymentMode: payment.paymentMode ?? '',
+					sourceAssetAccountId:
+						paymentMode === 'no-payment' ? '' : (payment.sourceAssetAccountId ?? ''),
+					paymentMode,
 					startingAccountBalanceText:
 						payment.startingAccountBalance === undefined
 							? ''
@@ -334,7 +336,7 @@ export function deriveCockpit(
 				payment.paymentMode === 'no-payment'
 					? undefined
 					: payment.sourceAssetAccountId || undefined,
-			paymentMode: payment.paymentMode || undefined,
+			paymentMode: payment.paymentMode,
 			customPaymentAmount: customAmount.value,
 			startingAccountBalance: accountBalance.value,
 			startingStatementBalance: statementBalance.value,
@@ -428,7 +430,11 @@ export function deriveCockpit(
 		return {
 			paymentId: payment.paymentId,
 			resolvedPayment,
-			paymentAmountDisplay: resolvedPayment ? formatMoney(resolvedPayment.paymentAmount) : '—',
+			paymentAmountDisplay: resolvedPayment
+				? formatMoney(resolvedPayment.paymentAmount)
+				: payment.paymentMode === 'no-payment'
+					? formatMoney(ZERO_MONEY)
+					: '—',
 			remainingAccountBalanceDisplay: resolvedPayment
 				? formatMoney(resolvedPayment.remainingAccountBalance)
 				: '—',
@@ -465,9 +471,6 @@ export function deriveCockpit(
 			!payment.startingStatementBalanceText.trim()
 		) {
 			standUpControls.push(paymentControlId(payment.paymentId, 'startingStatementBalance'));
-		}
-		if (!payment.paymentMode) {
-			standUpControls.push(paymentControlId(payment.paymentId, 'paymentMode'));
 		}
 		if (payment.paymentMode === 'custom' && !payment.customPaymentAmountText.trim()) {
 			standUpControls.push(paymentControlId(payment.paymentId, 'customPaymentAmount'));
