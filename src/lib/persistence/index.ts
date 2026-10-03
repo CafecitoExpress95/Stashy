@@ -7,6 +7,15 @@ export type {
 	UpdateAccountInput
 } from './configuration-repository';
 export {
+	DataPortabilityError,
+	IndexedDbDataPortabilityService,
+	createBrowserDataPortabilityService
+} from './indexeddb-data-portability';
+export type { DataPortabilityErrorCode } from './indexeddb-data-portability';
+export { createStashyArchive, countStashyArchiveData } from './stashy-archive-export';
+export { validateStashyArchive } from './stashy-archive-validate';
+export type * from './stashy-archive-types';
+export {
 	IndexedDbConfigurationRepository,
 	createBrowserConfigurationRepository
 } from './indexeddb-configuration-repository';

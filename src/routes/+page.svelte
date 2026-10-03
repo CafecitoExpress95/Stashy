@@ -54,9 +54,9 @@
 		<span class="card-kicker">Open Whiteboard -></span>
 	</a>
 	<a class="launch-card panel" href={resolve('/configuration/data/')}>
-		<p class="eyebrow">Coming later</p>
+		<p class="eyebrow">Ready now</p>
 		<h2>Save & Restore</h2>
 		<p>Export every local record and restore it safely from a validated file.</p>
-		<span class="card-kicker">Preview area -></span>
+		<span class="card-kicker">Create a backup -></span>
 	</a>
 </div>

@@ -33,6 +33,7 @@ import {
 	type StoodUpCorrectionResult,
 	type StoodUpSitDownSnapshot
 } from './sit-down-repository';
+import { getSessionRelationshipIssues } from './session-relationships';
 
 type WriteOperation = 'save-draft' | 'stand-up' | 'save-correction' | 'discard-draft';
 
@@ -55,63 +56,8 @@ function repositoryError(error: unknown): SitDownRepositoryError {
 }
 
 function validateRelationships(snapshot: SitDownSnapshot, expectedDraft: boolean): void {
-	if (snapshot.session.isDraft !== expectedDraft) {
-		throw new SitDownRepositoryError(
-			'invalid-session',
-			expectedDraft
-				? 'A draft save requires an unfinished sit-down.'
-				: 'Standing up requires a completed sit-down snapshot.'
-		);
-	}
-
-	const accountIds = new Set<string>();
-	for (const record of snapshot.accountRecords) {
-		if (record.sessionId !== snapshot.session.id) {
-			throw new SitDownRepositoryError(
-				'invalid-session',
-				'Every account snapshot must belong to the sit-down session.'
-			);
-		}
-		if (accountIds.has(record.accountId)) {
-			throw new SitDownRepositoryError(
-				'invalid-session',
-				'A sit-down cannot contain duplicate account snapshots.'
-			);
-		}
-		accountIds.add(record.accountId);
-	}
-
-	const liabilityIds = new Set<string>();
-	for (const payment of snapshot.paymentRecords) {
-		if (payment.sessionId !== snapshot.session.id) {
-			throw new SitDownRepositoryError(
-				'invalid-session',
-				'Every payment must belong to the sit-down session.'
-			);
-		}
-		if (!accountIds.has(payment.liabilityAccountId)) {
-			throw new SitDownRepositoryError(
-				'invalid-session',
-				'Every payment liability must have an account snapshot.'
-			);
-		}
-		if (
-			payment.sourceAssetAccountId !== undefined &&
-			!accountIds.has(payment.sourceAssetAccountId)
-		) {
-			throw new SitDownRepositoryError(
-				'invalid-session',
-				'Every selected source asset must have an account snapshot.'
-			);
-		}
-		if (liabilityIds.has(payment.liabilityAccountId)) {
-			throw new SitDownRepositoryError(
-				'invalid-session',
-				'A sit-down cannot contain duplicate liability payments.'
-			);
-		}
-		liabilityIds.add(payment.liabilityAccountId);
-	}
+	const [issue] = getSessionRelationshipIssues(snapshot, expectedDraft);
+	if (issue) throw new SitDownRepositoryError('invalid-session', issue);
 }
 
 function compareSessionsNewestFirst(left: Session, right: Session): number {

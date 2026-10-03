@@ -17,7 +17,7 @@ This subtree contains code intended for reuse across routes and features.
 - `domain/` owns exact money, records, configuration selectors, cockpit adaptation, calculations, thresholds,
   validation, Archive summaries, latest-state analysis, and account history; read `domain/AGENTS.md` before changing it.
 - `charting/` owns the tree-shaken Chart.js data/options adapter for exact account-history visualization.
-- `persistence/` owns versioned IndexedDB configuration, Archive reads, and atomic draft/completed/correction persistence; read its child guide.
+- `persistence/` owns versioned IndexedDB configuration, Archive reads, atomic draft/completed/correction persistence, and full backup export/validation/restore; read its child guide.
 - `components/` owns the reusable app shell, configuration forms, cockpit cards, session replay, completed-session receipt, and account-history chart; read its child guide.
 - Product logo and favicon assets are served from `static/` so every prerendered route uses the
   same supplied iconography.

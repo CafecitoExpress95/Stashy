@@ -8,5 +8,6 @@ This subtree owns Playwright coverage for the prerendered MS-01 application.
 - `cockpit.spec.ts` covers exact projections, default No payment rows, paid-mode toggle/deselect behavior, debounced autosave, manual draft saving, draft discard, invalid-input preservation, confirmed Stand Up, durable receipts, new-session creation, failed-write messaging, Axe, mobile overflow, and sticky asset visibility.
 - `archive.spec.ts` covers newest-first summaries, draft/completed replay, draft discard, explicit audited corrections, later-session isolation, current renamed/archived account resolution, missing links, Axe, and mobile overflow.
 - `whiteboard.spec.ts` covers latest stood-up state, draft exclusion, exact Chart.js/table history including No payment details, threshold labels, chart and keyboard detail selection, sparse/same-date/archived accounts, Archive links, Axe, and mobile overflow.
+- `data-portability.spec.ts` covers actual UI backup round trips, all-six-store replacement, archived accounts, drafts, nested correction audits, exact restored projections, cancellation, invalid archives, native synchronous clone failures, aborted transactions, clean retry, Axe, and mobile containment.
 
 Tests use fabricated data only. Prefer role and label locators that match the product language users see.

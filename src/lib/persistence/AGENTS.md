@@ -11,6 +11,9 @@ This subtree owns browser persistence boundaries and the IndexedDB implementatio
 - `records.ts`: strict validation for configuration, draft, completed, and before/after audit records.
 - `indexeddb-configuration-repository.ts`: transactional configuration implementation.
 - `indexeddb-sit-down-repository.ts`: newest-first Archive reads, stable-ID draft/final writes, and serialized atomic stood-up corrections with audit entries.
+- `indexeddb-data-portability.ts`: `IndexedDbDataPortabilityService`, browser factory, and errors for full backup export, validation, counts, and atomic restore.
+- `stashy-archive-types.ts` and `stashy-archive-constants.ts`: versioned `.stashy` archive contracts and paths; `stashy-archive-export.ts` creates complete ZIP-compatible backups, and `stashy-archive-validate.ts` validates every imported record and relationship before UI confirmation.
+- `session-relationships.ts`: shared stored-session relationship validation for sit-down persistence and backup recovery.
 
 ## Invariants
 
@@ -24,3 +27,4 @@ This subtree owns browser persistence boundaries and the IndexedDB implementatio
 - Completed corrections preserve IDs, ownership, creation times, and unchanged child timestamps; changed records and exact before/after audits commit together without touching later sessions.
 - Final snapshots require resolved account/payment records; omitted statement balances are stored as `null` and present statement remainders never go below zero.
 - Browser globals and the pre-commit failure hook are injected so tests can isolate IndexedDB and prove interrupted writes preserve the prior committed snapshot.
+- Restore receives plain validated records, queues every clear and replacement write in one transaction before yielding, and resolves only after commit. On failure it aborts and settles all queued requests before rethrowing, preserving every store without unhandled request rejections.

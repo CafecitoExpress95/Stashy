@@ -8,7 +8,7 @@ const routes = [
 	['/archive/', 'Check Archive'],
 	['/whiteboard/', 'Visit Whiteboard'],
 	['/configuration/accounts/', 'Accounts'],
-	['/configuration/data/', 'Backups arrive before the real-data trial.']
+	['/configuration/data/', 'Save & Restore']
 ] as const;
 
 test('every top-level route supports direct navigation and refresh', async ({ page }) => {

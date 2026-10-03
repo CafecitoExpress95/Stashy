@@ -22,7 +22,7 @@ This subtree owns SvelteKit routing and presentation orchestration.
 - `sit-down/`: cockpit lifecycle orchestration; normal/draft sessions retain visible autosave, draft discard, and Stand Up, while `?session=<id>` opens completed history with explicit audited Save Corrections and abandonment warnings.
 - `archive/`: newest-first saved-session summaries; `archive/session/?session=<id>` provides read-only replay, draft discard, and the explicit resume/edit handoff.
 - `whiteboard/`: latest stood-up account summary plus query-selected active/archived account history, Chart.js visualization, exact table, and Archive deep links.
-- `configuration/data/`: honest upcoming-phase empty state.
+- `configuration/data/`: Phase 7 backup validation, review, and confirmed full restore; read its child guide.
 - `configuration/accounts/`: Phase 2 IndexedDB-backed account and threshold configuration workspace.
 
 ## Adding Routes
