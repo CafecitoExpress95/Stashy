@@ -740,6 +740,42 @@ textarea:focus-visible {
 	background: #fff5d9;
 }
 
+.projection-warning,
+.asset-projection.incomplete,
+.asset-summary-item.incomplete {
+	border: 1px solid #dfa747;
+	background: #fff5d9;
+	color: var(--ink);
+}
+
+.projection-warning {
+	padding: 12px;
+	border-radius: 12px;
+	overflow-wrap: anywhere;
+}
+
+.projection-warning p,
+.projection-explanation {
+	margin: 0 0 8px;
+}
+
+.projection-warning-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+}
+
+.projection-summary .button {
+	min-height: 44px;
+	padding: 6px 10px;
+	font-size: 0.75rem;
+}
+
+.asset-summary-dock .projection-summary {
+	margin-bottom: 8px;
+}
+
 .asset-projection.danger,
 .asset-projection.zero,
 .asset-projection.negative {

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		formatMoney,
+		assessDraftProjection,
 		type Account,
 		type DraftAccountRecord,
 		type DraftPaymentRecord,
@@ -8,7 +9,7 @@
 		type PaymentMode,
 		type PaymentRecord
 	} from '$lib/domain';
-	import type { SitDownSnapshot } from '$lib/persistence';
+	import type { SitDownSnapshot, SitDownDraftSnapshot } from '$lib/persistence';
 
 	type Props = {
 		snapshot: SitDownSnapshot;
@@ -16,11 +17,21 @@
 	};
 
 	let { snapshot, accounts }: Props = $props();
+	let draftProjection = $derived.by(() => {
+		if (!snapshot.session.isDraft) return null;
+		const draft = snapshot as SitDownDraftSnapshot;
+		return assessDraftProjection({
+			sessionId: draft.session.id,
+			accounts,
+			accountRecords: draft.accountRecords,
+			paymentRecords: draft.paymentRecords
+		});
+	});
 
 	function accountName(accountId: string | undefined): string {
 		return accountId
 			? (accounts.find((account) => account.id === accountId)?.name ?? 'Unknown account')
-			: 'No source — not paying';
+			: 'No source selected';
 	}
 
 	function accountFor(record: DraftAccountRecord): Account | undefined {
@@ -64,14 +75,25 @@
 	<section class="receipt-section" aria-labelledby="replay-assets-title">
 		<div class="stack-heading">
 			<div>
-				<p class="eyebrow">Opening to final</p>
+				<p class="eyebrow">
+					{snapshot.session.isDraft ? 'Draft running balances' : 'Opening to final'}
+				</p>
 				<h2 id="replay-assets-title">Asset snapshots</h2>
 			</div>
 		</div>
+		{#if draftProjection?.paymentExclusions.length}
+			<p class="projection-warning">Incomplete — payments excluded</p>
+		{/if}
 		<div class="receipt-grid">
 			{#each snapshot.accountRecords as record (record.id)}
 				{@const account = accountFor(record)}
 				{#if account?.type === 'asset'}
+					{@const assessment = draftProjection?.assetProjections.find(
+						(asset) => asset.accountId === record.accountId
+					)}
+					{@const draftBalance = draftProjection?.projectedAssetBalances?.find(
+						(asset) => asset.accountId === record.accountId
+					)?.projectedFinalBalance}
 					<article class="panel receipt-card">
 						<h3>{account.name}</h3>
 						{#if account.archived}<span class="archive-status">Archived account</span>{/if}
@@ -81,10 +103,24 @@
 								<dd>{money(record.openingBalance)}</dd>
 							</div>
 							<div>
-								<dt>Final</dt>
-								<dd>{money(record.finalBalance, 'Not calculated')}</dd>
+								<dt>{snapshot.session.isDraft ? 'Running balance' : 'Final'}</dt>
+								<dd>
+									{money(
+										snapshot.session.isDraft ? draftBalance : record.finalBalance,
+										'Not calculated'
+									)}
+								</dd>
 							</div>
 						</dl>
+						{#if assessment?.completeness === 'partial'}
+							<p class="projection-explanation">Partial — payments excluded.</p>
+						{:else if assessment?.completeness === 'unavailable'}
+							<p class="projection-explanation">
+								{record.openingBalance === undefined
+									? 'Opening balance needed.'
+									: 'Running balance unavailable — record errors.'}
+							</p>
+						{/if}
 					</article>
 				{/if}
 			{/each}
@@ -121,7 +157,11 @@
 							</div>
 							<div>
 								<dt>From</dt>
-								<dd>{accountName(payment.sourceAssetAccountId)}</dd>
+								<dd>
+									{payment.paymentMode === 'no-payment'
+										? 'No source — not paying'
+										: accountName(payment.sourceAssetAccountId)}
+								</dd>
 							</div>
 							<div>
 								<dt>Mode</dt>
@@ -152,6 +192,9 @@
 							<strong>Notes</strong>
 							<p>{payment.notes ?? 'No notes recorded.'}</p>
 						</div>
+						{#if draftProjection?.paymentExclusions.some((row) => row.paymentId === payment.id)}
+							<p class="projection-explanation">Payment excluded from running balances.</p>
+						{/if}
 					</article>
 				{/if}
 			{/each}

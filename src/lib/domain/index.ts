@@ -124,5 +124,13 @@ export type {
 	SessionAuditEntry
 } from './types';
 
-export { validateDraftSession, validateStandUpSession } from './validation';
-export type { SessionValidationInput, SessionValidationResult } from './validation';
+export { assessDraftProjection, validateDraftSession, validateStandUpSession } from './validation';
+export type {
+	SessionValidationInput,
+	SessionValidationResult,
+	DraftProjectionInput,
+	DraftProjectionAssessment,
+	ProjectionCompleteness,
+	AssetProjectionAssessment,
+	PaymentProjectionExclusion
+} from './validation';

@@ -105,7 +105,11 @@
 		<div>
 			<p class="eyebrow">Read-only replay</p>
 			<h1>{snapshot.session.sitDownDate} sit-down</h1>
-			<p>These are the exact snapshots currently stored for this session.</p>
+			<p>
+				{snapshot.session.isDraft
+					? 'Running balances are derived from the saved draft entries; incomplete payments are identified below.'
+					: 'These are the exact snapshots currently stored for this session.'}
+			</p>
 		</div>
 		<div class="replay-actions">
 			<span

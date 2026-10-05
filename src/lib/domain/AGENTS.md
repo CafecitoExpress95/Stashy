@@ -13,7 +13,7 @@ Read `README.md` for the domain data flow and a plain-language guide to the Type
 - `cockpit.ts`: raw form initialization with no-payment defaults, draft/completed snapshot hydration with stable IDs, exact parsing, snapshot assembly, live payment views, threshold states, and save/stand-up readiness.
 - `calculations.ts`: payment resolution and source-asset projections.
 - `thresholds.ts`: threshold validation, inheritance/override resolution, and state classification.
-- `validation.ts`: draft versus stand-up completeness checks plus non-blocking financial warnings.
+- `validation.ts`: draft versus stand-up completeness checks, `assessDraftProjection` (date-independent exact results, per-asset completeness, and ID-based payment exclusions), plus non-blocking financial warnings.
 - `selectors.ts`: exact newest-first Archive summaries, newest stood-up Whiteboard state, and saved-snapshot account history datapoints.
 - `index.ts`: explicit intentional public barrel re-exported by `$lib`; internal factories stay private.
 
@@ -25,6 +25,8 @@ Read `README.md` for the domain data flow and a plain-language guide to the Type
 - Missing draft fields warn, while the same calculation-critical omissions block standing up. Complete rows still contribute to live draft projections.
 - Financially messy numeric outcomes warn without blocking; invalid references and duplicate liability payments are errors.
 - A duplicate liability payment makes the entire asset projection untrusted.
+- Projection completeness is transient: missing attribution makes every available source partial; an unresolved known-source row affects that source only. Missing openings never erase other sources' deductions. Structural reference failures suppress every projected value before unfinished rows are filtered.
+- Invalid raw dates or optional statement text block saving independently of available money results. Draft replay re-derives running balances; completed replay/history retain saved final snapshots.
 - Statement balances are optional except for Statement payment mode. New cockpit rows default to no-payment; no-payment rows require only the liability account balance, store a zero-dollar payment without a source asset, and leave projections unchanged. Resolved omitted statement values are null, and paid-mode remaining statement balances floor at zero; only account balances remain signed.
 - Threshold boundaries are strict `below` checks: warning equality is healthy and danger equality is warning.
 - Archive summaries and history come only from saved snapshots; drafts have no completed payment total and history never infers transactions.

@@ -27,9 +27,15 @@ import type {
 	Session
 } from './types';
 import {
+	assessDraftProjection,
 	validateDraftSession,
 	validateStandUpSession,
 	type SessionValidationResult
+} from './validation';
+import type {
+	DraftProjectionAssessment,
+	PaymentProjectionExclusion,
+	ProjectionCompleteness
 } from './validation';
 
 export type CockpitAssetForm = {
@@ -73,6 +79,7 @@ export type CockpitFieldError = {
 };
 
 export type CockpitAssetView = {
+	readonly completeness: ProjectionCompleteness;
 	readonly accountId: AccountId;
 	readonly openingBalance: Money | null;
 	readonly projectedFinalBalance: Money | null;
@@ -83,6 +90,8 @@ export type CockpitAssetView = {
 };
 
 export type CockpitPaymentView = {
+	readonly hasInvalidInput: boolean;
+	readonly projectionExclusion: PaymentProjectionExclusion | null;
 	readonly paymentId: PaymentRecordId;
 	readonly resolvedPayment: PaymentRecord | null;
 	readonly paymentAmountDisplay: string;
@@ -92,6 +101,7 @@ export type CockpitPaymentView = {
 };
 
 export type CockpitDerivation = {
+	readonly projection: DraftProjectionAssessment;
 	readonly session: Session | null;
 	readonly accountRecords: readonly DraftAccountRecord[];
 	readonly paymentRecords: readonly DraftPaymentRecord[];
@@ -379,8 +389,16 @@ export function deriveCockpit(
 		: null;
 	const draftValidation = input ? validateDraftSession(input) : null;
 	const standUpValidation = input ? validateStandUpSession(input) : null;
+	const projection =
+		draftValidation ??
+		assessDraftProjection({
+			sessionId: form.sessionId,
+			accounts,
+			accountRecords: initialAccountRecords,
+			paymentRecords
+		});
 	const projectedByAssetId = new Map(
-		draftValidation?.projectedAssetBalances?.map((asset) => [
+		projection.projectedAssetBalances?.map((asset) => [
 			asset.accountId,
 			asset.projectedFinalBalance
 		]) ?? []
@@ -390,14 +408,17 @@ export function deriveCockpit(
 		if (account?.type !== 'asset') return record;
 		return {
 			...record,
-			finalBalance: projectedByAssetId.get(record.accountId) ?? record.openingBalance
+			finalBalance: projectedByAssetId.get(record.accountId)
 		};
 	});
 
 	const assetViews: CockpitAssetView[] = form.assets.map((asset) => {
 		const account = accounts.find((candidate) => candidate.id === asset.accountId);
 		const openingBalance = assetOpenings.get(asset.accountId) ?? null;
-		const projectedFinalBalance = projectedByAssetId.get(asset.accountId) ?? openingBalance;
+		const projectedFinalBalance = projectedByAssetId.get(asset.accountId) ?? null;
+		const assessment = projection.assetProjections.find(
+			(item) => item.accountId === asset.accountId
+		);
 		let thresholdState: AssetThresholdState = 'none';
 		if (account?.type === 'asset' && projectedFinalBalance !== null) {
 			const thresholds = resolveAssetThresholds(
@@ -409,6 +430,7 @@ export function deriveCockpit(
 			}
 		}
 		return {
+			completeness: assessment?.completeness ?? 'unavailable',
 			accountId: asset.accountId,
 			openingBalance,
 			projectedFinalBalance,
@@ -420,14 +442,18 @@ export function deriveCockpit(
 					: projectedFinalBalance === ZERO_MONEY
 						? 'zero'
 						: 'negative',
-			issues:
-				draftValidation?.warnings.filter((issue) => issueMatches(issue, asset.accountId)) ?? []
+			issues: assessment?.issues ?? []
 		};
 	});
 
 	const paymentViews: CockpitPaymentView[] = form.payments.map((payment) => {
 		const resolvedPayment = resolvedPayments.get(payment.paymentId) ?? null;
 		return {
+			hasInvalidInput: fieldErrors.some((error) =>
+				error.controlId.startsWith(`payment-${payment.paymentId}-`)
+			),
+			projectionExclusion:
+				projection.paymentExclusions.find((row) => row.paymentId === payment.paymentId) ?? null,
 			paymentId: payment.paymentId,
 			resolvedPayment,
 			paymentAmountDisplay: resolvedPayment
@@ -443,8 +469,7 @@ export function deriveCockpit(
 					? '\u2014'
 					: formatMoney(resolvedPayment.remainingStatementBalance)
 				: '—',
-			issues:
-				draftValidation?.warnings.filter((issue) => issueMatches(issue, payment.paymentId)) ?? []
+			issues: projection.issues.filter((issue) => issueMatches(issue, payment.paymentId))
 		};
 	});
 
@@ -478,6 +503,7 @@ export function deriveCockpit(
 	}
 
 	return {
+		projection,
 		session,
 		accountRecords,
 		paymentRecords,
@@ -488,7 +514,7 @@ export function deriveCockpit(
 		fieldErrors,
 		firstDraftBlockingControlId: fieldErrors[0]?.controlId ?? null,
 		firstStandUpBlockingControlId: fieldErrors[0]?.controlId ?? standUpControls[0] ?? null,
-		canSaveDraft: session !== null && fieldErrors.length === 0
+		canSaveDraft: session !== null && fieldErrors.length === 0 && draftValidation?.isValid === true
 	};
 }
 

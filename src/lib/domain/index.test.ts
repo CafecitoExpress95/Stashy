@@ -10,6 +10,7 @@ const expectedRuntimeExports = [
 	'accountRecordIdFromString',
 	'addMoney',
 	'appSettingsIdFromString',
+	'assessDraftProjection',
 	'auditEntryIdFromString',
 	'calculatePayment',
 	'calculateProjectedAssetBalances',

@@ -65,6 +65,163 @@ describe('cockpit initialization', () => {
 });
 
 describe('cockpit derivation', () => {
+	it.each([
+		['full-balance', 'startingAccountBalanceText', ''],
+		['statement-balance', 'startingStatementBalanceText', 'invalid'],
+		['custom', 'customPaymentAmountText', 'invalid'],
+		['custom', 'startingAccountBalanceText', '']
+	] as const)(
+		'excludes %s with unusable %s only from its known source',
+		(paymentMode, field, value) => {
+			const form = freshForm();
+			enterAssetOpenings(form);
+			Object.assign(form.payments[0], {
+				paymentMode,
+				sourceAssetAccountId: form.assets[0].accountId,
+				startingAccountBalanceText: '50.00',
+				startingStatementBalanceText: '20.00',
+				customPaymentAmountText: '10.00',
+				[field]: value
+			});
+			const result = deriveCockpit(form, canonicalAccounts, settings);
+			expect(result.assets.map((asset) => asset.completeness)).toEqual(['partial', 'complete']);
+			expect(result.assets[0].projectedDisplay).toBe('$1,000.10');
+			expect(getCockpitStandUpData(result)).toBeNull();
+		}
+	);
+
+	it('retains negative partial results and applies a negative payment only after attribution', () => {
+		const form = freshForm();
+		enterAssetOpenings(form);
+		form.assets[0].openingBalanceText = '100.00';
+		Object.assign(form.payments[0], {
+			paymentMode: 'custom',
+			sourceAssetAccountId: form.assets[0].accountId,
+			startingAccountBalanceText: '200.00',
+			customPaymentAmountText: '125.00'
+		});
+		Object.assign(form.payments[1], {
+			paymentMode: 'custom',
+			startingAccountBalanceText: '50.00',
+			customPaymentAmountText: '-10.00'
+		});
+		const partial = deriveCockpit(form, canonicalAccounts, settings);
+		expect(partial.assets[0]).toMatchObject({
+			projectedDisplay: '-$25.00',
+			completeness: 'partial',
+			safetyState: 'negative'
+		});
+		form.payments[1].sourceAssetAccountId = form.assets[0].accountId;
+		const complete = deriveCockpit(form, canonicalAccounts, settings);
+		expect(complete.assets[0]).toMatchObject({
+			projectedDisplay: '-$15.00',
+			completeness: 'complete'
+		});
+		expect(complete.payments[1].issues.map((issue) => issue.code)).toContain('negative-payment');
+	});
+
+	it.each(['full-balance', 'statement-balance', 'custom'] as const)(
+		'marks every source partial immediately when %s has no source',
+		(paymentMode) => {
+			const form = freshForm();
+			enterAssetOpenings(form);
+			form.payments[0].paymentMode = paymentMode;
+			const result = deriveCockpit(form, canonicalAccounts, settings);
+			expect(result.assets.map((asset) => asset.completeness)).toEqual(['partial', 'partial']);
+			expect(result.projection.paymentExclusions[0].paymentId).toBe(form.payments[0].paymentId);
+			expect(result.projection.paymentExclusions[0].issues.map((issue) => issue.code)).toContain(
+				'missing-source-asset'
+			);
+			expect(getCockpitStandUpData(result)).toBeNull();
+		}
+	);
+
+	it.each(['', 'invalid'])(
+		'keeps a known overdraft when another selected source opening is %j',
+		(openingBalanceText) => {
+			const form = freshForm();
+			enterAssetOpenings(form);
+			form.assets[0].openingBalanceText = '100.00';
+			Object.assign(form.payments[0], {
+				paymentMode: 'custom',
+				sourceAssetAccountId: form.assets[0].accountId,
+				startingAccountBalanceText: '200.00',
+				customPaymentAmountText: '125.00'
+			});
+			Object.assign(form.payments[1], {
+				paymentMode: 'full-balance',
+				sourceAssetAccountId: form.assets[1].accountId,
+				startingAccountBalanceText: '10.00'
+			});
+			form.assets[1].openingBalanceText = openingBalanceText;
+			const result = deriveCockpit(form, canonicalAccounts, settings);
+			expect(result.assets[0]).toMatchObject({
+				projectedDisplay: '-$25.00',
+				safetyState: 'negative',
+				completeness: 'complete'
+			});
+			expect(result.assets[0].issues.map((issue) => issue.code)).toContain(
+				'negative-projected-asset-balance'
+			);
+			expect(result.assets[1]).toMatchObject({
+				projectedFinalBalance: null,
+				completeness: 'unavailable'
+			});
+			expect(result.accountRecords[1].finalBalance).toBeUndefined();
+		}
+	);
+
+	it('keeps independent projections during invalid dates and optional statement text', () => {
+		const form = freshForm();
+		enterAssetOpenings(form);
+		Object.assign(form.payments[0], {
+			paymentMode: 'full-balance',
+			sourceAssetAccountId: form.assets[0].accountId,
+			startingAccountBalanceText: '100.00',
+			startingStatementBalanceText: 'invalid'
+		});
+		form.sitDownDateText = 'invalid';
+		const result = deriveCockpit(form, canonicalAccounts, settings);
+		expect(result.assets[0]).toMatchObject({
+			projectedDisplay: '$900.10',
+			completeness: 'complete'
+		});
+		expect(result.payments[0].hasInvalidInput).toBe(true);
+		expect(result.canSaveDraft).toBe(false);
+		expect(getCockpitStandUpData(result)).toBeNull();
+	});
+
+	it('limits exclusions to a known source and preserves them through draft hydration', () => {
+		const form = freshForm();
+		enterAssetOpenings(form);
+		Object.assign(form.payments[0], {
+			paymentMode: 'custom',
+			sourceAssetAccountId: form.assets[0].accountId
+		});
+		const result = deriveCockpit(form, canonicalAccounts, settings);
+		expect(result.assets.map((asset) => asset.completeness)).toEqual(['partial', 'complete']);
+		const draft = getCockpitDraftData(result);
+		if (!draft) throw new Error('Expected incomplete draft to remain saveable.');
+		const resumed = deriveCockpit(
+			hydrateCockpitForm(draft, canonicalAccounts),
+			canonicalAccounts,
+			settings
+		);
+		expect(resumed.assets.map((asset) => asset.completeness)).toEqual(['partial', 'complete']);
+	});
+
+	it('never substitutes opening balances after a structural projection failure', () => {
+		const form = freshForm();
+		enterAssetOpenings(form);
+		form.payments.push({ ...form.payments[0] });
+		const result = deriveCockpit(form, canonicalAccounts, settings);
+		expect(result.assets.every((asset) => asset.projectedFinalBalance === null)).toBe(true);
+		expect(
+			result.accountRecords.slice(0, 2).every((record) => record.finalBalance === undefined)
+		).toBe(true);
+		expect(result.canSaveDraft).toBe(false);
+	});
+
 	it('projects complete rows while later draft rows remain unfinished', () => {
 		const form = freshForm();
 		enterAssetOpenings(form);

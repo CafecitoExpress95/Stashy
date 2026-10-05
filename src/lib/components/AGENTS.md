@@ -4,6 +4,7 @@ This subtree contains reusable Svelte presentation for the application shell, co
 
 - `AssetProjectionPanel.svelte`: source-asset opening input, projected balance, threshold state, and prominent zero/overdraft warning.
 - `AssetProjectionDock.svelte`: compact sticky projected balances and risk states for stacked/mobile cockpit layouts.
+- `ProjectionWarnings.svelte`: persistent exclusion/opening/structural summaries with control-focus callbacks, shared by the source rail and dock.
 - `LiabilityPaymentCard.svelte`: focused liability balances, default no-payment state, source/no-source, paid-mode toggle buttons, payment result, confirmation, notes, and warning controls.
 - `SessionReplayDetails.svelte`: reusable read-only rendering for complete and intentionally incomplete saved snapshots, resolving current account names and archived accounts.
 - `SitDownReceipt.svelte`: completion framing around the shared replay details plus the new-session handoff.
@@ -16,4 +17,5 @@ This subtree contains reusable Svelte presentation for the application shell, co
 - `AccountHistoryChart.svelte`: responsive Chart.js final-balance line with current threshold annotations and point-selection callbacks.
 
 Components receive data and action callbacks. They do not open IndexedDB or own route navigation.
+Projection panels and dock render the same exact values and completeness; they do not announce duplicate safety messages. The cockpit route owns the single projection live region and explicit warning-action focus. Draft replay uses the shared domain assessment instead of stored draft final-balance fallbacks.
 Forms preserve user input after failed validation or persistence and announce errors accessibly. Cockpit components remain presentation-only; the route owns mutable form state and the domain adapter owns calculations.

@@ -2,10 +2,11 @@
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import AssetProjectionDock from '$lib/components/AssetProjectionDock.svelte';
 	import AssetProjectionPanel from '$lib/components/AssetProjectionPanel.svelte';
 	import LiabilityPaymentCard from '$lib/components/LiabilityPaymentCard.svelte';
+	import ProjectionWarnings from '$lib/components/ProjectionWarnings.svelte';
 	import SitDownReceipt from '$lib/components/SitDownReceipt.svelte';
 	import {
 		accountIdFromString,
@@ -72,6 +73,69 @@
 	let saveChain: Promise<void> = Promise.resolve();
 
 	let derivation = $derived(form && settings ? deriveCockpit(form, accounts, settings) : null);
+	let exclusionActions = $derived(
+		(derivation?.projection.paymentExclusions ?? []).map((row) => {
+			const name = paymentName(row.paymentId);
+			const issue =
+				row.issues.find((item) => item.code === 'missing-source-asset') ??
+				row.issues.find((item) => item.code === 'missing-source-asset-balance') ??
+				row.issues[0];
+			const needsOpening = issue?.code === 'missing-source-asset-balance';
+			return {
+				controlId: needsOpening
+					? `asset-${row.sourceAssetAccountId}-openingBalance`
+					: `payment-${row.paymentId}-${issue?.field ?? 'paymentMode'}`,
+				label: `${name}: ${issue?.code === 'missing-source-asset' ? 'Choose source' : needsOpening ? 'Enter source opening' : 'Finish payment'}`,
+				reason: issue?.message ?? 'Complete this payment to include it in running balances.'
+			};
+		})
+	);
+	let missingOpeningActions = $derived(
+		(derivation?.assets ?? [])
+			.filter((asset) => asset.openingBalance === null)
+			.map((asset) => ({
+				controlId: `asset-${asset.accountId}-openingBalance`,
+				label: `${accounts.find((account) => account.id === asset.accountId)?.name ?? 'Source'}: Enter opening`,
+				reason: 'Enter a valid opening balance to calculate this source.'
+			}))
+	);
+	let projectionStructuralError = $derived(
+		derivation?.projection.issues.some((issue) => issue.severity === 'error') ?? false
+	);
+	let projectionAnnouncement = $state('');
+	let previousProblemKeys = new Set<string>();
+	let announcedProblemMessages: string[] = [];
+	$effect(() => {
+		const problems = (derivation?.projection.paymentExclusions ?? []).flatMap((row) =>
+			row.issues.map((issue) => ({
+				key: `${row.paymentId}:${issue.code}`,
+				message: `${paymentName(row.paymentId)}: ${row.issues.some((item) => item.code === 'missing-source-asset') ? 'Choose a source — this payment is excluded from running balances.' : row.issues[0].message}`
+			}))
+		);
+		if (projectionStructuralError)
+			problems.push({
+				key: 'structural-error',
+				message: 'Running balances unavailable — fix the record errors.'
+			});
+		for (const asset of derivation?.assets ?? []) {
+			if (asset.safetyState !== 'normal')
+				problems.push({
+					key: `${asset.accountId}:${asset.safetyState}`,
+					message: `${accounts.find((account) => account.id === asset.accountId)?.name}: ${asset.safetyState === 'negative' ? 'Overdraft risk' : 'No cushion remains'}.`
+				});
+		}
+		const added = problems.filter((problem) => !previousProblemKeys.has(problem.key));
+		const currentProblemKeys = new Set(problems.map((problem) => problem.key));
+		// Keep an announcement stable during ordinary typing; announce only new problems.
+		if (added.length > 0)
+			announcedProblemMessages = [...new Set(added.map((problem) => problem.message))];
+		else
+			announcedProblemMessages = announcedProblemMessages.filter((message) =>
+				problems.some((problem) => problem.message === message)
+			);
+		projectionAnnouncement = announcedProblemMessages.join(' ');
+		previousProblemKeys = currentProblemKeys;
+	});
 	let receiptWarnings = $derived(
 		completedSnapshot
 			? validateStandUpSession({
@@ -113,6 +177,13 @@
 	});
 
 	onDestroy(() => clearAutosave());
+
+	function paymentName(paymentId: PaymentRecordId): string {
+		const liabilityId = form?.payments.find(
+			(payment) => payment.paymentId === paymentId
+		)?.liabilityAccountId;
+		return accounts.find((account) => account.id === liabilityId)?.name ?? 'Payment';
+	}
 
 	function localDate(): string {
 		const now = new Date();
@@ -314,6 +385,22 @@
 	function focusControl(controlId: string | null): void {
 		if (!controlId) return;
 		document.getElementById(controlId)?.focus();
+	}
+
+	/** Explicit warning actions preserve entry focus until invoked and clear the mobile dock. */
+	async function focusProjectionControl(controlId: string): Promise<void> {
+		await tick();
+		const control = document.getElementById(controlId);
+		if (!control) return;
+		control.focus({ preventScroll: true });
+		control.scrollIntoView({ block: 'center', behavior: 'instant' });
+		const dock = document.querySelector('.asset-summary-dock');
+		if (!dock || getComputedStyle(dock).display === 'none') return;
+		const dockBounds = dock.getBoundingClientRect();
+		const bounds = control.getBoundingClientRect();
+		if (dockBounds.top <= 16 && bounds.top < dockBounds.bottom + 12) {
+			window.scrollBy({ top: bounds.top - dockBounds.bottom - 12, behavior: 'instant' });
+		}
 	}
 
 	async function queueDraftSave(manual: boolean): Promise<void> {
@@ -564,6 +651,23 @@
 		<a class="button primary" href={resolve('/configuration/accounts/')}>Configure accounts</a>
 	</section>
 {:else if form && derivation}
+	{#snippet projectionWarnings()}
+		<ProjectionWarnings
+			exclusions={exclusionActions}
+			missingOpenings={missingOpeningActions}
+			structuralError={projectionStructuralError}
+			onFocus={focusProjectionControl}
+		/>
+	{/snippet}
+	<div
+		class="sr-only"
+		role="status"
+		aria-label="Projection warnings"
+		aria-live="polite"
+		aria-atomic="true"
+	>
+		{projectionAnnouncement}
+	</div>
 	<div class="cockpit-layout">
 		<aside class="asset-rail" aria-labelledby="source-assets-title">
 			<div class="rail-heading">
@@ -571,6 +675,7 @@
 				<h2 id="source-assets-title">Source assets</h2>
 				<p>Every complete payment hits its selected source immediately.</p>
 			</div>
+			{@render projectionWarnings()}
 			<div class="asset-projection-list">
 				{#each form.assets as asset (asset.accountId)}
 					{@const account = accounts.find((candidate) => candidate.id === asset.accountId)}
@@ -591,6 +696,7 @@
 		</aside>
 
 		<AssetProjectionDock
+			warnings={projectionWarnings}
 			assets={form.assets.flatMap((asset) => {
 				const account = accounts.find((candidate) => candidate.id === asset.accountId);
 				const view = derivation.assets.find((candidate) => candidate.accountId === asset.accountId);
@@ -621,6 +727,7 @@
 						{view}
 						fieldError={(field) => paymentFieldError(payment, field)}
 						onChange={(field, value) => updatePayment(payment.paymentId, field, value)}
+						onFocus={focusProjectionControl}
 					/>
 				{/if}
 			{/each}

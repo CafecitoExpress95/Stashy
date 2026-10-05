@@ -7,7 +7,7 @@ This directory contains Stashy's UI-independent money and record rules. It delib
 1. `identity.ts` validates IDs and dates, while `money.ts` converts typed text into exact integer cents.
 2. The cockpit will assemble the flat draft records defined in `types.ts`.
 3. `calculations.ts` resolves complete payment rows and projects each source asset after planned payments.
-4. `validation.ts` keeps draft omissions separate from hard data errors and financial warnings.
+4. `validation.ts` keeps draft omissions separate from hard data errors and financial warnings. Its `assessDraftProjection` accepts session identity and normalized rows independently of date validity, preserves exact deductions from usable rows/openings, and reports per-asset completeness plus ID-based exclusions. Unknown payment attribution affects all sources; an unresolved known-source row affects only its selected asset. Structural failures suppress projected values before rows are filtered.
 5. Saved `AccountRecord` snapshots feed `selectors.ts`; history never invents missing transactions.
 6. `thresholds.ts` turns an asset's effective thresholds into passive healthy, warning, or danger colors.
 

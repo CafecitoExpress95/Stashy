@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accountIdFromString } from './identity';
+import { accountIdFromString, sessionIdFromString } from './identity';
 import { moneyFromMinorUnits } from './money';
 import {
 	canonicalAccountRecords,
@@ -242,6 +242,29 @@ describe('financial warnings', () => {
 });
 
 describe('duplicate payment protection', () => {
+	it.each(['invalid-source', 'invalid-liability', 'wrong-session'] as const)(
+		'suppresses projections before filtering an unfinished %s row',
+		(problem) => {
+			const invalidId = accountIdFromString('00000000-0000-4000-8000-000000000099');
+			const payment = { ...canonicalPaymentDrafts[0], startingAccountBalance: undefined };
+			if (problem === 'invalid-source') payment.sourceAssetAccountId = invalidId;
+			if (problem === 'invalid-liability') payment.liabilityAccountId = fixtureIds.checking;
+			if (problem === 'wrong-session')
+				payment.sessionId = sessionIdFromString('00000000-0000-4000-8000-000000000099');
+			const result = validateDraftSession({
+				session: canonicalSession,
+				accounts: canonicalAccounts,
+				accountRecords: canonicalAccountRecords,
+				paymentRecords: [payment]
+			});
+			expect(result.isValid).toBe(false);
+			expect(result.projectedAssetBalances).toBeNull();
+			expect(result.assetProjections.every((asset) => asset.completeness === 'unavailable')).toBe(
+				true
+			);
+		}
+	);
+
 	it('returns a hard error and refuses a trusted projection', () => {
 		const result = validateDraftSession({
 			session: canonicalSession,

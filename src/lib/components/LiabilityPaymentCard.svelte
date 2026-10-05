@@ -22,10 +22,12 @@
 		view: CockpitPaymentView;
 		fieldError: (field: string) => string | undefined;
 		onChange: (field: EditableField, value: string) => void;
+		onFocus: (controlId: string) => void;
 	};
 
-	let { account, sourceAssets, form, view, fieldError, onChange }: Props = $props();
+	let { account, sourceAssets, form, view, fieldError, onChange, onFocus }: Props = $props();
 	let isNoPayment = $derived(form.paymentMode === 'no-payment');
+	let needsSource = $derived(!isNoPayment && !form.sourceAssetAccountId);
 	let financialIssues = $derived(
 		view.issues.filter((issue) =>
 			[
@@ -47,12 +49,39 @@
 			<p class="card-step">Payment plan</p>
 			<h2 id="liability-{account.id}-title">{account.name}</h2>
 		</div>
-		{#if view.resolvedPayment}
+		{#if view.issues.some((issue) => issue.severity === 'error')}
+			<span class="plan-pending">Record error</span>
+		{:else if view.hasInvalidInput}
+			<span class="plan-pending">Fix input</span>
+		{:else if view.projectionExclusion}
+			<span class="plan-pending">Payment excluded</span>
+		{:else if view.resolvedPayment}
 			<span class="plan-ready">Calculated</span>
 		{:else}
 			<span class="plan-pending">Needs details</span>
 		{/if}
 	</header>
+
+	{#if needsSource}
+		<div class="projection-warning">
+			<p id="payment-{form.paymentId}-sourceAssetAccountId-warning">
+				Choose a source — this payment is excluded from running balances.
+			</p>
+			<button
+				type="button"
+				class="button secondary"
+				onclick={() => onFocus(`payment-${form.paymentId}-sourceAssetAccountId`)}
+				>Choose source</button
+			>
+		</div>
+	{:else if view.projectionExclusion}
+		<div class="projection-warning" id="payment-{form.paymentId}-exclusion">
+			<p>Payment excluded from running balances.</p>
+			<ul>
+				{#each view.projectionExclusion.issues as issue (issue.code)}<li>{issue.message}</li>{/each}
+			</ul>
+		</div>
+	{/if}
 
 	<div class="liability-balance-grid">
 		<label for="payment-{form.paymentId}-startingAccountBalance">
@@ -63,10 +92,15 @@
 				inputmode="decimal"
 				value={form.startingAccountBalanceText}
 				aria-invalid={fieldError('startingAccountBalance') ? 'true' : undefined}
+				aria-describedby={fieldError('startingAccountBalance')
+					? `payment-${form.paymentId}-startingAccountBalance-error`
+					: undefined}
 				oninput={(event) => onChange('startingAccountBalanceText', event.currentTarget.value)}
 			/>
 			{#if fieldError('startingAccountBalance')}
-				<small class="field-error">{fieldError('startingAccountBalance')}</small>
+				<small class="field-error" id="payment-{form.paymentId}-startingAccountBalance-error"
+					>{fieldError('startingAccountBalance')}</small
+				>
 			{/if}
 		</label>
 		<label for="payment-{form.paymentId}-startingStatementBalance">
@@ -77,12 +111,17 @@
 				inputmode="decimal"
 				value={form.startingStatementBalanceText}
 				aria-invalid={fieldError('startingStatementBalance') ? 'true' : undefined}
+				aria-describedby={`payment-${form.paymentId}-startingStatementBalance-help`}
 				oninput={(event) => onChange('startingStatementBalanceText', event.currentTarget.value)}
 			/>
 			{#if fieldError('startingStatementBalance')}
-				<small class="field-error">{fieldError('startingStatementBalance')}</small>
+				<small class="field-error" id="payment-{form.paymentId}-startingStatementBalance-help"
+					>{fieldError('startingStatementBalance')}</small
+				>
 			{:else}
-				<small>Required only when using Statement payment mode.</small>
+				<small id="payment-{form.paymentId}-startingStatementBalance-help"
+					>Required only when using Statement payment mode.</small
+				>
 			{/if}
 		</label>
 	</div>
@@ -94,7 +133,16 @@
 				id="payment-{form.paymentId}-sourceAssetAccountId"
 				value={isNoPayment ? '' : form.sourceAssetAccountId}
 				disabled={isNoPayment}
-				aria-invalid={!isNoPayment && fieldError('sourceAssetAccountId') ? 'true' : undefined}
+				aria-invalid={needsSource || (!isNoPayment && fieldError('sourceAssetAccountId'))
+					? 'true'
+					: undefined}
+				aria-describedby={needsSource
+					? `payment-${form.paymentId}-sourceAssetAccountId-warning`
+					: view.projectionExclusion
+						? `payment-${form.paymentId}-exclusion`
+						: isNoPayment
+							? `payment-${form.paymentId}-sourceAssetAccountId-help`
+							: undefined}
 				onchange={(event) => onChange('sourceAssetAccountId', event.currentTarget.value)}
 			>
 				<option value="">{isNoPayment ? 'No source — not paying' : 'Choose a source asset'}</option>
@@ -102,10 +150,12 @@
 					<option value={asset.id}>{asset.name}</option>
 				{/each}
 			</select>
-			{#if !isNoPayment && fieldError('sourceAssetAccountId')}
+			{#if !needsSource && !isNoPayment && fieldError('sourceAssetAccountId')}
 				<small class="field-error">{fieldError('sourceAssetAccountId')}</small>
 			{:else if isNoPayment}
-				<small>No money will leave a source asset for this liability.</small>
+				<small id="payment-{form.paymentId}-sourceAssetAccountId-help"
+					>No money will leave a source asset for this liability.</small
+				>
 			{/if}
 		</label>
 
@@ -162,10 +212,15 @@
 					inputmode="decimal"
 					value={form.customPaymentAmountText}
 					aria-invalid={fieldError('customPaymentAmount') ? 'true' : undefined}
+					aria-describedby={fieldError('customPaymentAmount')
+						? `payment-${form.paymentId}-customPaymentAmount-error`
+						: undefined}
 					oninput={(event) => onChange('customPaymentAmountText', event.currentTarget.value)}
 				/>
 				{#if fieldError('customPaymentAmount')}
-					<small class="field-error">{fieldError('customPaymentAmount')}</small>
+					<small class="field-error" id="payment-{form.paymentId}-customPaymentAmount-error"
+						>{fieldError('customPaymentAmount')}</small
+					>
 				{/if}
 			</label>
 		{:else}

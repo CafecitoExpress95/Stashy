@@ -16,16 +16,24 @@
 			? 'negative'
 			: view.safetyState === 'zero'
 				? 'zero'
-				: view.thresholdState
+				: view.completeness === 'unavailable'
+					? 'incomplete'
+					: view.completeness === 'partial' && ['healthy', 'none'].includes(view.thresholdState)
+						? 'incomplete'
+						: view.thresholdState
 	);
 	let statusLabel = $derived(
 		view.safetyState === 'negative'
 			? 'Below zero'
 			: view.safetyState === 'zero'
 				? 'At zero'
-				: view.thresholdState === 'none'
-					? 'No thresholds'
-					: view.thresholdState[0].toUpperCase() + view.thresholdState.slice(1)
+				: view.completeness === 'unavailable'
+					? 'Unavailable'
+					: view.completeness === 'partial' && ['healthy', 'none'].includes(view.thresholdState)
+						? 'Incomplete'
+						: view.thresholdState === 'none'
+							? 'No thresholds'
+							: view.thresholdState[0].toUpperCase() + view.thresholdState.slice(1)
 	);
 </script>
 
@@ -54,18 +62,27 @@
 		<p class="field-error" id="asset-{account.id}-error">{fieldError}</p>
 	{/if}
 
-	<div class="projected-balance" aria-live="polite">
-		<span>Projected after planned payments</span>
+	<div class="projected-balance">
+		<span>{view.completeness === 'partial' ? 'Partial running balance' : 'Running balance'}</span>
 		<strong>{view.projectedDisplay}</strong>
 	</div>
+	{#if view.completeness === 'partial'}
+		<p class="projection-explanation">Incomplete — payments excluded.</p>
+	{:else if view.completeness === 'unavailable'}
+		<p class="projection-explanation">
+			{view.openingBalance === null
+				? 'Enter a valid opening balance to calculate this source.'
+				: 'Running balance unavailable — fix the record errors.'}
+		</p>
+	{/if}
 
 	{#if view.safetyState !== 'normal'}
-		<div class="safety-alert" role="alert">
+		<div class="safety-alert">
 			<strong>{view.safetyState === 'negative' ? 'Overdraft risk' : 'No cushion remains'}</strong>
 			<span>
 				{view.safetyState === 'negative'
-					? 'Planned payments put this asset below $0.00.'
-					: 'Planned payments leave this asset at exactly $0.00.'}
+					? 'Included planned payments put this asset below $0.00.'
+					: 'Included planned payments leave this asset at exactly $0.00.'}
 			</span>
 		</div>
 	{/if}

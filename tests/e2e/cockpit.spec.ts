@@ -55,6 +55,150 @@ test.beforeEach(async ({ page }) => {
 	await expect(page.getByRole('heading', { name: 'Source assets' })).toBeVisible();
 });
 
+for (const viewport of [
+	{ width: 1280, height: 800 },
+	{ width: 390, height: 844 },
+	{ width: 390, height: 400 }
+]) {
+	test(`source warning is immediate and actionable at ${viewport.width}x${viewport.height}`, async ({
+		page
+	}) => {
+		await page.setViewportSize(viewport);
+		const card = liabilityCard(page, 'Card A');
+		await assetCard(page, 'Checking').getByLabel('Opening balance').fill('100.00');
+		await card.getByRole('button', { name: 'Custom', exact: true }).click();
+		await expect(card.getByRole('button', { name: 'Custom', exact: true })).toBeFocused();
+		await expect(
+			card.getByText('Choose a source — this payment is excluded from running balances.', {
+				exact: true
+			})
+		).toBeVisible();
+		await expect(
+			page.getByText('Incomplete — payments excluded', { exact: true }).first()
+		).toBeVisible();
+		await card.getByRole('button', { name: 'Choose source', exact: true }).focus();
+		await page.keyboard.press('Enter');
+		const source = card.getByLabel('Pay from');
+		await expect(source).toBeFocused();
+		await expect(source).toHaveAttribute('aria-describedby', /sourceAssetAccountId/);
+		const sourceBox = await source.boundingBox();
+		expect(sourceBox).not.toBeNull();
+		expect(sourceBox!.y).toBeGreaterThanOrEqual(0);
+		expect(sourceBox!.y + sourceBox!.height).toBeLessThanOrEqual(viewport.height);
+		if (viewport.width < 920) {
+			const dockBox = await page
+				.getByRole('complementary', { name: 'Live asset projections' })
+				.boundingBox();
+			expect(sourceBox!.y).toBeGreaterThanOrEqual(dockBox!.y + dockBox!.height);
+		}
+		await source.selectOption(cockpitAccountIds.checking);
+		await card.getByLabel('Account balance').fill('200.00');
+		await card.getByLabel('Payment amount', { exact: true }).fill('125.00');
+		const cardB = liabilityCard(page, 'Card B');
+		await assetCard(page, 'Savings').getByLabel('Opening balance').fill('500.00');
+		await cardB.getByRole('button', { name: 'Full balance' }).click();
+		await cardB.getByLabel('Account balance').fill('10.00');
+		await cardB.getByLabel('Pay from').selectOption(cockpitAccountIds.savings);
+		await assetCard(page, 'Savings').getByLabel('Opening balance').fill('');
+		await expect(assetCard(page, 'Checking').locator('.projected-balance strong')).toHaveText(
+			'-$25.00'
+		);
+		await expect(
+			assetCard(page, 'Checking').getByText('Overdraft risk', { exact: true })
+		).toBeVisible();
+		await assetCard(page, 'Savings').getByLabel('Opening balance').fill('invalid');
+		await expect(assetCard(page, 'Checking').locator('.projected-balance strong')).toHaveText(
+			'-$25.00'
+		);
+		await assetCard(page, 'Savings').getByLabel('Opening balance').fill('');
+		await source.selectOption('');
+		await expect(
+			card.getByText('Choose a source — this payment is excluded from running balances.', {
+				exact: true
+			})
+		).toBeVisible();
+		await page.getByRole('button', { name: 'Save Draft', exact: true }).click();
+		await expect(page.getByText('Draft saved in this browser.', { exact: true })).toBeVisible();
+		await page.reload();
+		await expect(
+			liabilityCard(page, 'Card A').getByRole('button', { name: 'Choose source', exact: true })
+		).toBeVisible();
+		await page.setViewportSize(
+			viewport.width < 920 ? { width: 1280, height: 800 } : { width: 390, height: 844 }
+		);
+		await expect(
+			liabilityCard(page, 'Card A').getByRole('button', { name: 'Choose source', exact: true })
+		).toBeVisible();
+		await expect(
+			liabilityCard(page, 'Card A').getByLabel('Payment amount', { exact: true })
+		).toHaveValue('$125.00');
+		await page.setViewportSize(viewport);
+	});
+}
+
+for (const mode of ['Full balance', 'Statement', 'Custom']) {
+	test(`${mode} warns before Stand Up and clears the warning only after attribution or deliberate deselection`, async ({
+		page
+	}) => {
+		await assetCard(page, 'Checking').getByLabel('Opening balance').fill('1000.00');
+		await assetCard(page, 'Savings').getByLabel('Opening balance').fill('500.00');
+		for (const name of ['Card A', 'Card B', 'Card C'])
+			await liabilityCard(page, name).getByLabel('Account balance').fill('200.00');
+		const card = liabilityCard(page, 'Card A');
+		await card.getByLabel('Statement balance').fill('100.00');
+		await card.getByRole('button', { name: mode, exact: true }).click();
+		await expect(page.getByRole('status', { name: 'Projection warnings', exact: true })).toHaveText(
+			'Card A: Choose a source — this payment is excluded from running balances.'
+		);
+		if (mode === 'Custom') await card.getByLabel('Payment amount', { exact: true }).fill('125.00');
+		await expect(
+			page.getByRole('status', { name: 'Projection warnings', exact: true })
+		).toContainText('Choose a source');
+		await expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+		await expect(assetCard(page, 'Checking')).not.toHaveClass(/healthy/);
+		await expect(card.getByRole('button', { name: 'Choose source', exact: true })).toBeVisible();
+		await page.getByRole('button', { name: 'Stand Up', exact: true }).click();
+		await expect(page.getByRole('dialog')).not.toBeVisible();
+		await expect(card.getByLabel('Pay from')).toBeFocused();
+		await page
+			.locator('.asset-rail .projection-summary')
+			.getByRole('button', { name: 'Card A: Choose source', exact: true })
+			.click();
+		await expect(card.getByLabel('Pay from')).toBeFocused();
+		await card.getByLabel('Pay from').selectOption(cockpitAccountIds.checking);
+		await expect(card.getByRole('button', { name: 'Choose source', exact: true })).toHaveCount(0);
+		await card.getByRole('button', { name: mode, exact: true }).click();
+		await expect(card.getByLabel('No source needed')).toBeDisabled();
+		await expect(assetCard(page, 'Checking').locator('.projected-balance strong')).toHaveText(
+			'$1,000.00'
+		);
+		await expect(page.getByText('Incomplete — payments excluded', { exact: true })).toHaveCount(0);
+		await card.getByRole('button', { name: mode, exact: true }).click();
+		await expect(card.getByLabel('Pay from')).toHaveValue('');
+		await expect(card.getByRole('button', { name: 'Choose source', exact: true })).toBeVisible();
+		if (mode === 'Custom')
+			await expect(card.getByLabel('Payment amount', { exact: true })).toHaveValue('');
+	});
+}
+
+test('invalid date and optional statement text preserve deductions but prevent saving', async ({
+	page
+}) => {
+	await assetCard(page, 'Checking').getByLabel('Opening balance').fill('100.00');
+	const card = liabilityCard(page, 'Card A');
+	await card.getByRole('button', { name: 'Full balance' }).click();
+	await card.getByLabel('Account balance').fill('125.00');
+	await card.getByLabel('Pay from').selectOption(cockpitAccountIds.checking);
+	await card.getByLabel('Statement balance').fill('invalid');
+	await page.getByLabel('Sit-down date').fill('');
+	await expect(assetCard(page, 'Checking').locator('.projected-balance strong')).toHaveText(
+		'-$25.00'
+	);
+	await expect(card.getByText('Fix input', { exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Save Draft', exact: true }).click();
+	await expect(page.getByText('Autosave paused', { exact: true })).toBeVisible();
+});
+
 test('valid edits autosave and resume after reload', async ({ page }) => {
 	await assetCard(page, 'Checking').getByLabel('Opening balance').fill('$100.10');
 	await expect(page.getByText('All changes autosaved in this browser.')).toBeVisible();

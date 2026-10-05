@@ -51,6 +51,50 @@ test('a draft is unmistakable in replay and opens the draft lifecycle', async ({
 	await expect(page.getByRole('button', { name: 'Save Corrections' })).toHaveCount(0);
 });
 
+test('draft replay ignores a legacy final fallback and identifies an unassigned paid row', async ({
+	page
+}) => {
+	await page.evaluate(async (sessionId) => {
+		await new Promise<void>((resolve, reject) => {
+			const request = indexedDB.open('stashy', 3);
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => {
+				const database = request.result;
+				const transaction = database.transaction(['accountRecords', 'paymentRecords'], 'readwrite');
+				const records = transaction.objectStore('accountRecords');
+				const payments = transaction.objectStore('paymentRecords');
+				const asset = records.get('20000000-0000-4000-8000-000000000002');
+				asset.onsuccess = () =>
+					records.put({ ...asset.result, openingBalance: 10000, finalBalance: 99999 });
+				const payment = payments.get('40000000-0000-4000-8000-000000000002');
+				payment.onsuccess = () =>
+					payments.put({
+						...payment.result,
+						sessionId,
+						paymentMode: 'custom',
+						startingAccountBalance: 20000,
+						customPaymentAmount: 12500
+					});
+				transaction.oncomplete = () => {
+					database.close();
+					resolve();
+				};
+				transaction.onabort = () => reject(transaction.error);
+			};
+		});
+	}, archiveSessionIds.draft);
+	await page.goto('/archive/session/?session=' + archiveSessionIds.draft);
+	const assets = page.getByRole('region', { name: 'Asset snapshots' });
+	await expect(assets.getByText('Running balance', { exact: true })).toBeVisible();
+	await expect(assets.getByText('$100.00', { exact: true })).toHaveCount(2);
+	await expect(assets.getByText('$999.99', { exact: true })).toHaveCount(0);
+	await expect(assets.getByText('Partial — payments excluded.', { exact: true })).toBeVisible();
+	await expect(page.getByText('No source selected', { exact: true })).toBeVisible();
+	await expect(page.getByText('No source — not paying', { exact: true })).toHaveCount(0);
+	await expect(page.getByText('Final', { exact: true })).toHaveCount(0);
+	await expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
 test('draft replay can discard the draft without touching completed history', async ({ page }) => {
 	await page.goto('/archive/session/?session=' + archiveSessionIds.draft);
 	await expect(page.getByText('Draft', { exact: true })).toBeVisible();

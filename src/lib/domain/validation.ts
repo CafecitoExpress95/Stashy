@@ -5,7 +5,7 @@ import {
 	type AssetOpeningBalance,
 	type ProjectedAssetBalance
 } from './calculations';
-import type { AccountId } from './identity';
+import type { AccountId, PaymentRecordId, SessionId } from './identity';
 import {
 	createIssue,
 	type DomainIssue,
@@ -37,17 +37,45 @@ export type SessionValidationResult = {
 	readonly warnings: readonly DomainIssue[];
 	readonly resolvedPayments: readonly PaymentRecord[];
 	readonly projectedAssetBalances: readonly ProjectedAssetBalance[] | null;
+	readonly assetProjections: readonly AssetProjectionAssessment[];
+	readonly paymentExclusions: readonly PaymentProjectionExclusion[];
 };
+
+/** Projection inputs deliberately omit date validity and persistence readiness. */
+export type DraftProjectionInput = Omit<SessionValidationInput, 'session'> & {
+	readonly sessionId: SessionId;
+};
+
+/** Whether the available result includes every paid row attributable to this asset. */
+export type ProjectionCompleteness = 'complete' | 'partial' | 'unavailable';
+
+/** An excluded row retains its identity, attribution, and existing issue codes. */
+export type PaymentProjectionExclusion = {
+	readonly paymentId: PaymentRecordId;
+	readonly sourceAssetAccountId?: AccountId;
+	readonly issues: readonly DomainIssue[];
+};
+
+/** Completeness and reasons belonging to one normalized source snapshot. */
+export type AssetProjectionAssessment = {
+	readonly accountId: AccountId;
+	readonly completeness: ProjectionCompleteness;
+	readonly issues: readonly DomainIssue[];
+};
+
+/** Exact available results and explicit omissions, independent of saving. */
+export type DraftProjectionAssessment = Pick<
+	SessionValidationResult,
+	| 'issues'
+	| 'resolvedPayments'
+	| 'projectedAssetBalances'
+	| 'assetProjections'
+	| 'paymentExclusions'
+>;
 
 type ValidationLookups = {
 	readonly accountsById: ReadonlyMap<AccountId, Account>;
 	readonly accountRecordsByAccountId: ReadonlyMap<AccountId, DraftAccountRecord>;
-};
-
-type PaymentValidationOutcome = {
-	readonly issues: readonly DomainIssue[];
-	readonly resolvedPayments: readonly PaymentRecord[];
-	readonly canBuildTrustedProjection: boolean;
 };
 
 const CALCULATION_FIELD_ISSUE_CODES = new Set<DomainIssueCode>([
@@ -58,7 +86,7 @@ const CALCULATION_FIELD_ISSUE_CODES = new Set<DomainIssueCode>([
 	'missing-starting-statement-balance'
 ]);
 
-function createValidationLookups(input: SessionValidationInput): ValidationLookups {
+function createValidationLookups(input: DraftProjectionInput): ValidationLookups {
 	return {
 		accountsById: new Map(input.accounts.map((account) => [account.id, account])),
 		accountRecordsByAccountId: new Map(
@@ -68,14 +96,14 @@ function createValidationLookups(input: SessionValidationInput): ValidationLooku
 }
 
 function validateAccountRecords(
-	input: SessionValidationInput,
+	input: DraftProjectionInput,
 	lookups: ValidationLookups,
 	missingFieldSeverity: DomainIssueSeverity
 ): DomainIssue[] {
 	const issues: DomainIssue[] = [];
 
 	for (const record of input.accountRecords) {
-		if (record.sessionId !== input.session.id) {
+		if (record.sessionId !== input.sessionId) {
 			issues.push(
 				createIssue(
 					'error',
@@ -165,14 +193,14 @@ function applyMissingFieldSeverity(
 
 function validatePaymentReference(
 	record: DraftPaymentRecord,
-	input: SessionValidationInput,
+	input: DraftProjectionInput,
 	lookups: ValidationLookups,
 	missingFieldSeverity: DomainIssueSeverity
 ): { readonly issues: DomainIssue[]; readonly sourceOpeningIsAvailable: boolean } {
 	const issues: DomainIssue[] = [];
 	let sourceOpeningIsAvailable = true;
 
-	if (record.sessionId !== input.session.id) {
+	if (record.sessionId !== input.sessionId) {
 		issues.push(
 			createIssue(
 				'error',
@@ -228,49 +256,8 @@ function validatePaymentReference(
 	return { issues, sourceOpeningIsAvailable };
 }
 
-function validatePaymentRecords(
-	input: SessionValidationInput,
-	lookups: ValidationLookups,
-	missingFieldSeverity: DomainIssueSeverity,
-	hasDuplicatePayments: boolean,
-	allowIncompleteProjection: boolean
-): PaymentValidationOutcome {
-	const issues: DomainIssue[] = [];
-	const resolvedPayments: PaymentRecord[] = [];
-	let canBuildTrustedProjection = !hasDuplicatePayments;
-
-	for (const record of input.paymentRecords) {
-		const referenceValidation = validatePaymentReference(
-			record,
-			input,
-			lookups,
-			missingFieldSeverity
-		);
-		issues.push(...referenceValidation.issues);
-		if (!referenceValidation.sourceOpeningIsAvailable) {
-			canBuildTrustedProjection = false;
-		}
-
-		const calculation = calculatePayment(record);
-		if (!calculation.ok) {
-			if (!allowIncompleteProjection) {
-				canBuildTrustedProjection = false;
-			}
-			issues.push(
-				...calculation.errors.map((issue) => applyMissingFieldSeverity(issue, missingFieldSeverity))
-			);
-			continue;
-		}
-
-		resolvedPayments.push(calculation.value);
-		issues.push(...getPaymentWarnings(calculation.value));
-	}
-
-	return { issues, resolvedPayments, canBuildTrustedProjection };
-}
-
 function getAssetOpeningBalances(
-	input: SessionValidationInput,
+	input: DraftProjectionInput,
 	lookups: ValidationLookups
 ): AssetOpeningBalance[] {
 	const assetOpenings: AssetOpeningBalance[] = [];
@@ -318,39 +305,6 @@ function getProjectedAssetWarnings(
 	return warnings;
 }
 
-function calculateTrustedProjection(
-	input: SessionValidationInput,
-	lookups: ValidationLookups,
-	paymentValidation: PaymentValidationOutcome,
-	allowIncompleteProjection: boolean
-): {
-	readonly projectedAssetBalances: readonly ProjectedAssetBalance[] | null;
-	readonly issues: readonly DomainIssue[];
-} {
-	const everyPaymentResolved =
-		paymentValidation.resolvedPayments.length === input.paymentRecords.length;
-	if (
-		!paymentValidation.canBuildTrustedProjection ||
-		(!allowIncompleteProjection && !everyPaymentResolved)
-	) {
-		return { projectedAssetBalances: null, issues: [] };
-	}
-
-	const assetOpenings = getAssetOpeningBalances(input, lookups);
-	const projection = calculateProjectedAssetBalances(
-		assetOpenings,
-		paymentValidation.resolvedPayments
-	);
-	if (!projection.ok) {
-		return { projectedAssetBalances: null, issues: projection.errors };
-	}
-
-	return {
-		projectedAssetBalances: projection.value,
-		issues: getProjectedAssetWarnings(projection.value)
-	};
-}
-
 function getPaymentWarnings(payment: PaymentRecord): DomainIssue[] {
 	const warnings: DomainIssue[] = [];
 
@@ -388,55 +342,127 @@ function getPaymentWarnings(payment: PaymentRecord): DomainIssue[] {
 	return warnings;
 }
 
-function validateSession(
-	input: SessionValidationInput,
-	missingFieldSeverity: DomainIssueSeverity,
-	allowIncompleteProjection: boolean
-): SessionValidationResult {
+/**
+ * Checks structure before excluding unfinished rows, then reuses strict exact projection.
+ * A source without an opening affects only itself; unknown attribution affects every source.
+ */
+export function assessDraftProjection(input: DraftProjectionInput): DraftProjectionAssessment {
 	const lookups = createValidationLookups(input);
 	const duplicatePaymentIds = findDuplicatePaymentIds(input.paymentRecords);
-	const accountRecordIssues = validateAccountRecords(input, lookups, missingFieldSeverity);
-	const duplicatePaymentIssues = getDuplicatePaymentIssues(duplicatePaymentIds);
-	const paymentValidation = validatePaymentRecords(
-		input,
-		lookups,
-		missingFieldSeverity,
-		duplicatePaymentIds.size > 0,
-		allowIncompleteProjection
-	);
-	const projection = calculateTrustedProjection(
-		input,
-		lookups,
-		paymentValidation,
-		allowIncompleteProjection
-	);
-
-	// Keep a stable, human-readable order: snapshots, duplicates, payments, projection.
 	const issues = [
-		...accountRecordIssues,
-		...duplicatePaymentIssues,
-		...paymentValidation.issues,
-		...projection.issues
+		...validateAccountRecords(input, lookups, 'warning'),
+		...getDuplicatePaymentIssues(duplicatePaymentIds)
 	];
+	const resolvedPayments: PaymentRecord[] = [];
+	const paymentExclusions: PaymentProjectionExclusion[] = [];
+	for (const record of input.paymentRecords) {
+		const reference = validatePaymentReference(record, input, lookups, 'warning');
+		const calculation = calculatePayment(record);
+		const rowIssues = [
+			...reference.issues,
+			...(calculation.ok
+				? []
+				: calculation.errors.map((issue) => applyMissingFieldSeverity(issue, 'warning')))
+		];
+		issues.push(...rowIssues);
+		if (calculation.ok) {
+			resolvedPayments.push(calculation.value);
+			issues.push(...getPaymentWarnings(calculation.value));
+		}
+		if (
+			record.paymentMode !== 'no-payment' &&
+			(!calculation.ok ||
+				!reference.sourceOpeningIsAvailable ||
+				rowIssues.some((issue) => issue.severity === 'error'))
+		) {
+			paymentExclusions.push({
+				paymentId: record.id,
+				sourceAssetAccountId: record.sourceAssetAccountId,
+				issues: rowIssues
+			});
+		}
+	}
+
+	// Never hide structural failures by filtering their rows out of the calculation.
+	const structuralIssues = issues.filter((issue) => issue.severity === 'error');
+	let projectedAssetBalances: readonly ProjectedAssetBalance[] | null = null;
+	if (structuralIssues.length === 0) {
+		const excludedIds = new Set(paymentExclusions.map((row) => row.paymentId));
+		const projection = calculateProjectedAssetBalances(
+			getAssetOpeningBalances(input, lookups),
+			resolvedPayments.filter((row) => !excludedIds.has(row.id))
+		);
+		if (projection.ok) {
+			projectedAssetBalances = projection.value;
+			issues.push(...getProjectedAssetWarnings(projection.value));
+		} else {
+			issues.push(...projection.errors);
+			structuralIssues.push(...projection.errors);
+		}
+	}
+	const assetProjections: AssetProjectionAssessment[] = input.accountRecords
+		.filter((record) => lookups.accountsById.get(record.accountId)?.type === 'asset')
+		.map((record) => {
+			const exclusions = paymentExclusions.filter(
+				(row) => !row.sourceAssetAccountId || row.sourceAssetAccountId === record.accountId
+			);
+			return {
+				accountId: record.accountId,
+				completeness:
+					projectedAssetBalances === null || record.openingBalance === undefined
+						? 'unavailable'
+						: exclusions.length > 0
+							? 'partial'
+							: 'complete',
+				issues: [
+					...structuralIssues,
+					...issues.filter(
+						(issue) => issue.entityId === record.id || issue.entityId === record.accountId
+					),
+					...exclusions.flatMap((row) => row.issues)
+				]
+			};
+		});
+	return { issues, resolvedPayments, projectedAssetBalances, assetProjections, paymentExclusions };
+}
+
+function validateSession(
+	input: SessionValidationInput,
+	missingFieldSeverity: DomainIssueSeverity
+): SessionValidationResult {
+	const assessment = assessDraftProjection({ ...input, sessionId: input.session.id });
+	const issues = assessment.issues.map((issue) =>
+		usesCalculationField(issue) ||
+		['missing-opening-balance', 'missing-final-balance', 'missing-source-asset-balance'].includes(
+			issue.code
+		)
+			? { ...issue, severity: missingFieldSeverity }
+			: issue
+	);
 	const errors = issues.filter((issue) => issue.severity === 'error');
 	const warnings = issues.filter((issue) => issue.severity === 'warning');
 
 	return {
+		...assessment,
 		isValid: errors.length === 0,
 		issues,
 		errors,
 		warnings,
-		resolvedPayments: paymentValidation.resolvedPayments,
-		projectedAssetBalances: projection.projectedAssetBalances
+		projectedAssetBalances:
+			missingFieldSeverity === 'error' &&
+			(assessment.resolvedPayments.length !== input.paymentRecords.length ||
+				assessment.paymentExclusions.length > 0)
+				? null
+				: assessment.projectedAssetBalances
 	};
 }
 
 /** Validates a draft, treating calculation-critical omissions as warnings. */
 export function validateDraftSession(input: SessionValidationInput): SessionValidationResult {
-	return validateSession(input, 'warning', true);
+	return validateSession(input, 'warning');
 }
 
 /** Validates a session for stand-up, treating required omissions as errors. */
 export function validateStandUpSession(input: SessionValidationInput): SessionValidationResult {
-	return validateSession(input, 'error', false);
+	return validateSession(input, 'error');
 }
