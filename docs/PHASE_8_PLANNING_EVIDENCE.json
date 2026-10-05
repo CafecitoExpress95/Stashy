@@ -1,0 +1,137 @@
+{
+	"browser": "Installed Brave, headless, isolated temporary profile",
+	"build": "5d42e42, freshly built",
+	"scenarios": [
+		{
+			"name": "Paid custom amount without source, before Stand Up",
+			"cardText": "PAYMENT PLAN\n\nCard A\nNeeds details\nAccount balance\nStatement balance optional\nRequired only when using Statement payment mode.\nPay from\nChoose a source asset\nChecking\nSavings\nPayment mode\n\nPress the active paid mode again to return to No payment.\n\nFull balance\nStatement\nCustom\nPayment amount\nREMAINING ACCOUNT\n—\nREMAINING STATEMENT\n—\nConfirmation ID optional\nNotes optional",
+			"assetText": "SOURCE ASSET\n\nChecking\nWarning\nOpening balance\nPROJECTED AFTER PLANNED PAYMENTS\n$100.00",
+			"sourceDescription": null
+		},
+		{
+			"name": "Stand Up with missing source",
+			"dialogOpen": false,
+			"focusedId": "payment-e8b129d5-7d66-453a-8bcc-c0ce0fca1387-sourceAssetAccountId",
+			"cardText": "PAYMENT PLAN\n\nCard A\nNeeds details\nAccount balance\nStatement balance optional\nRequired only when using Statement payment mode.\nPay from\nChoose a source asset\nChecking\nSavings\nChoose the asset paying this liability.\nPayment mode\n\nPress the active paid mode again to return to No payment.\n\nFull balance\nStatement\nCustom\nPayment amount\nREMAINING ACCOUNT\n—\nREMAINING STATEMENT\n—\nConfirmation ID optional\nNotes optional"
+		},
+		{
+			"name": "Source selected after missing-source state",
+			"assetText": "SOURCE ASSET\n\nChecking\nBelow zero\nOpening balance\nPROJECTED AFTER PLANNED PAYMENTS\n-$25.00\nOverdraft risk\nPlanned payments put this asset below $0.00."
+		},
+		{
+			"name": "Missing source on mobile",
+			"dockText": "Checking\n$100.00\nWarning\nSavings\n$500.00\nNo thresholds",
+			"dockBox": {
+				"x": 10,
+				"y": 8,
+				"width": 370,
+				"height": 95.46875
+			}
+		},
+		{
+			"name": "Another paid row has a selected source with missing opening balance",
+			"checkingText": "SOURCE ASSET\n\nChecking\nWarning\nOpening balance\nPROJECTED AFTER PLANNED PAYMENTS\n$100.00",
+			"savingsText": "SOURCE ASSET\n\nSavings\nNo thresholds\nOpening balance\nPROJECTED AFTER PLANNED PAYMENTS\n—"
+		},
+		{
+			"name": "Leave saved draft within debounce window",
+			"elapsedMs": 24,
+			"dialogs": [],
+			"resumedNotes": ""
+		},
+		{
+			"name": "Leave draft with invalid money",
+			"dialogs": [],
+			"resumedOpening": "$100.00"
+		},
+		{
+			"name": "Correction save transition",
+			"url": "http://127.0.0.1:4177/archive/session/?session=10000000-0000-4000-8000-000000000001&saved=1",
+			"dialogs": [],
+			"saveStatus": null
+		},
+		{
+			"name": "Correction guard after pristine guard evaluation",
+			"method": "Synthetic cancelable beforeunload and confirm returning false, then actual internal navigation",
+			"pristineDefaultPrevented": false,
+			"dirtyDefaultPrevented": true,
+			"urlAfterLeave": "http://127.0.0.1:4177/sit-down/?session=10000000-0000-4000-8000-000000000001"
+		},
+		{
+			"name": "Stress fixture: 8 assets, 12 liabilities, long names",
+			"measurements": [
+				{
+					"viewport": {
+						"width": 1280,
+						"height": 800
+					},
+					"pageOverflow": 0,
+					"dockHeight": 0,
+					"railHeight": 3042.5625,
+					"notesTop": 359.125
+				},
+				{
+					"viewport": {
+						"width": 390,
+						"height": 844
+					},
+					"pageOverflow": 0,
+					"dockHeight": 483.875,
+					"railHeight": 2882.5625,
+					"notesTop": 380.671875
+				},
+				{
+					"viewport": {
+						"width": 390,
+						"height": 400
+					},
+					"pageOverflow": 0,
+					"dockHeight": 483.875,
+					"railHeight": 2882.5625,
+					"notesTop": 318.671875
+				},
+				{
+					"viewport": {
+						"width": 840,
+						"height": 1180
+					},
+					"pageOverflow": 0,
+					"dockHeight": 272.9375,
+					"railHeight": 1523.421875,
+					"notesTop": 548.828125
+				},
+				{
+					"viewport": {
+						"width": 844,
+						"height": 390
+					},
+					"pageOverflow": 0,
+					"dockHeight": 272.9375,
+					"railHeight": 1523.421875,
+					"notesTop": 153.6875
+				}
+			],
+			"note": "Provisional CSS viewports; 390x400 simulates limited vertical space, not a real Android keyboard."
+		},
+		{
+			"name": "Two writable tabs save stale draft snapshots",
+			"firstTabConfirmationAfterBothSaves": "",
+			"notesAfterBothSaves": "Second tab note",
+			"expectedFirstTabConfirmation": "FIRST-TAB-CONFIRMATION"
+		},
+		{
+			"name": "First navigation to an unopened route after blocking network",
+			"startedAt": "Home, hydrated; Archive never opened",
+			"url": "http://127.0.0.1:4177/archive/",
+			"blockedRequests": [
+				"http://127.0.0.1:4177/_app/immutable/nodes/3.lFd0ZMZX.js",
+				"http://127.0.0.1:4177/_app/immutable/chunks/CZPPUMe0.js",
+				"http://127.0.0.1:4177/_app/immutable/chunks/3P2xqrFU.js",
+				"http://127.0.0.1:4177/_app/version.json",
+				"http://127.0.0.1:4177/_app/version.json",
+				"http://127.0.0.1:4177/favicon.png"
+			],
+			"archiveHeadingVisible": false
+		}
+	]
+}
