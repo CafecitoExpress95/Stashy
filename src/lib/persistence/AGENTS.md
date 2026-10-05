@@ -25,6 +25,7 @@ This subtree owns browser persistence boundaries and the IndexedDB implementatio
 - Reordering swaps active neighbors transactionally and leaves archived positions intact.
 - Draft and Stand Up writes replace one session's child-record set atomically; draft discard deletes only unfinished sessions and child rows without audit entries; a draft cannot demote a stood-up session.
 - Completed corrections preserve IDs, ownership, creation times, and unchanged child timestamps; changed records and exact before/after audits commit together without touching later sessions.
+- Account and audit ID creation share `$lib/browser-identity`; repository construction and history reads do not require randomUUID. ID generation is checked only when needed, and repository tests retain injected generators.
 - Final snapshots require resolved account/payment records; omitted statement balances are stored as `null` and present statement remainders never go below zero.
 - Browser globals and the pre-commit failure hook are injected so tests can isolate IndexedDB and prove interrupted writes preserve the prior committed snapshot.
 - Restore receives plain validated records, queues every clear and replacement write in one transaction before yielding, and resolves only after commit. On failure it aborts and settles all queued requests before rethrowing, preserving every store without unhandled request rejections.

@@ -44,6 +44,44 @@ Local completion artifacts (these directories remain ignored):
 [walkthrough](walkthroughs/2026-10-04-2336-phase-8-slice-a.md).
 The evidence above is retained here so another checkout does not depend on those local files.
 
+## Fold8 audit-ID follow-up (October 5, 2026)
+
+Anthony reported that opening a new sit-down on Fold8 failed with “This browser cannot create stable
+audit IDs.” Baseline for this follow-up: `64047b1`. The same message was reproduced on an actual
+nonsecure HTTP browser origin: randomUUID was absent while getRandomValues remained available.
+The Fold URL is unconfirmed (Anthony was unsure), so LAN HTTP remains the likely trigger rather than
+a verified device diagnosis. The [Web Crypto interface](https://w3c.github.io/webcrypto/#crypto-interface)
+documents this difference in API exposure.
+
+Account, session/child-record, and audit creation now share native randomUUID or a secure-byte v4 UUID
+fallback. No weak randomness, schema migration, ID replacement, or dependency change was introduced.
+History reads no longer require ID generation. All new IDs still pass existing validators.
+
+| Follow-up check            | Result                                                                             |
+| -------------------------- | ---------------------------------------------------------------------------------- |
+| Regressions before the fix | Expected failures: two initial cases plus the targeted exact audit-ID reproduction |
+| `npm run check`            | PASS: 0 errors, 0 warnings                                                         |
+| `npm run test:unit`        | PASS: 151 tests across 14 files                                                    |
+| `npm run test:e2e`         | PASS: production build and 60 Chromium tests                                       |
+| `npm run lint`             | PASS: Prettier and ESLint                                                          |
+| Physical Fold retest       | Pending Anthony's reload and retry at the same URL                                 |
+
+New production coverage uses `http://stashy.test` forwarded to the local preview, without mocking
+Crypto for the nonsecure lifecycle. At `390 × 844`, it creates accounts, saves and reloads an exact
+`$75.00` projection, completes the same draft, writes a before/after correction audit, and starts a
+distinct second draft. Every generated ID is a unique valid v4 UUID. Another regression verifies
+existing history reads with Crypto absent; eight unit cases cover UUID formatting and entropy failures.
+Existing warnings, canonical money results, backup/restore, and later-session isolation still pass.
+
+Local artifacts:
+[report](reports/2026-10-05-0005-browser-id-compatibility.md),
+[summary](summaries/2026-10-05-0005-browser-id-compatibility.md), and
+[walkthrough](walkthroughs/2026-10-05-0005-browser-id-compatibility.md).
+This tracked section retains transferable evidence independently of the ignored artifact directories.
+Anthony clarified that the MacBook is a standard Brave installation; no MacBook-specific defect or
+completed device verification is inferred. Reload on the Fold, retry creating a sit-down, and continue
+the fabricated-data review below. Product acceptance remains pending.
+
 ## Anthony's Slice A review
 
 Status: **pending; no user acceptance claimed**. Use fabricated payments.

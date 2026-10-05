@@ -14,6 +14,7 @@ This subtree contains code intended for reuse across routes and features.
 
 - `index.ts` is the `$lib` barrel and explicitly names the supported domain API; do not use wildcard
   exports that can leak internal helpers.
+- `browser-identity.ts` exports `createBrowserUuid` for account, session, child-record, and audit IDs: native randomUUID where available, otherwise a v4 UUID from secure random bytes. Never substitute time or Math.random for browser entropy.
 - `domain/` owns exact money, records, configuration selectors, cockpit adaptation, calculations, thresholds,
   validation (including date-independent `assessDraftProjection` and transient completeness/exclusion contracts), Archive summaries, latest-state analysis, and account history; read `domain/AGENTS.md` before changing it.
 - `charting/` owns the tree-shaken Chart.js data/options adapter for exact account-history visualization.

@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { onDestroy, onMount, tick } from 'svelte';
+	import { createBrowserUuid } from '$lib/browser-identity';
 	import AssetProjectionDock from '$lib/components/AssetProjectionDock.svelte';
 	import AssetProjectionPanel from '$lib/components/AssetProjectionPanel.svelte';
 	import LiabilityPaymentCard from '$lib/components/LiabilityPaymentCard.svelte';
@@ -197,19 +198,12 @@
 		return isoTimestampFromString(new Date().toISOString());
 	}
 
-	function randomUuid(): string {
-		if (typeof crypto?.randomUUID !== 'function') {
-			throw new Error('This browser cannot create stable sit-down IDs.');
-		}
-		return crypto.randomUUID();
-	}
-
 	function newForm(): CockpitForm {
 		const now = timestamp();
 		return createCockpitForm(accounts, localDate(), now, {
-			sessionId: () => sessionIdFromString(randomUuid()),
-			accountRecordId: () => accountRecordIdFromString(randomUuid()),
-			paymentRecordId: () => paymentRecordIdFromString(randomUuid())
+			sessionId: () => sessionIdFromString(createBrowserUuid()),
+			accountRecordId: () => accountRecordIdFromString(createBrowserUuid()),
+			paymentRecordId: () => paymentRecordIdFromString(createBrowserUuid())
 		});
 	}
 

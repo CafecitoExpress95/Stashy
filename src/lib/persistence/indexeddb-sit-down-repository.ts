@@ -1,3 +1,4 @@
+import { createBrowserUuid } from '$lib/browser-identity';
 import {
 	auditEntryIdFromString,
 	isoTimestampFromString,
@@ -205,7 +206,7 @@ export class IndexedDbSitDownRepository implements SitDownRepository {
 	constructor(options: RepositoryOptions) {
 		this.#factory = options.factory;
 		this.#now = options.now ?? (() => new Date());
-		this.#randomUUID = options.randomUUID ?? (() => crypto.randomUUID());
+		this.#randomUUID = options.randomUUID ?? createBrowserUuid;
 		this.#beforeCommit = options.beforeCommit;
 	}
 
@@ -651,12 +652,6 @@ export function createBrowserSitDownRepository(): IndexedDbSitDownRepository {
 		throw new SitDownRepositoryError(
 			'storage-unavailable',
 			'IndexedDB is unavailable in this browser.'
-		);
-	}
-	if (typeof crypto?.randomUUID !== 'function') {
-		throw new SitDownRepositoryError(
-			'storage-unavailable',
-			'This browser cannot create stable audit IDs.'
 		);
 	}
 	return new IndexedDbSitDownRepository({ factory: indexedDB });

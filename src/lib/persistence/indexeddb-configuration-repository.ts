@@ -1,3 +1,4 @@
+import { createBrowserUuid } from '$lib/browser-identity';
 import {
 	accountIdFromString,
 	findAdjacentActiveAccount,
@@ -48,17 +49,7 @@ export class IndexedDbConfigurationRepository implements ConfigurationRepository
 	constructor(options: RepositoryOptions) {
 		this.#factory = options.factory;
 		this.#now = options.now ?? (() => new Date());
-		this.#randomUUID =
-			options.randomUUID ??
-			(() => {
-				if (typeof globalThis.crypto?.randomUUID !== 'function') {
-					throw new ConfigurationRepositoryError(
-						'storage-unavailable',
-						'This browser cannot create stable account IDs.'
-					);
-				}
-				return globalThis.crypto.randomUUID();
-			});
+		this.#randomUUID = options.randomUUID ?? createBrowserUuid;
 	}
 
 	async loadConfiguration(): Promise<ConfigurationSnapshot> {

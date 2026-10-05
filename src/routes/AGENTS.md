@@ -20,6 +20,7 @@ This subtree owns SvelteKit routing and presentation orchestration.
 - `+error.svelte`: branded 404/runtime recovery with retry and home actions.
 - `+page.svelte`: branded product launchpad for current and upcoming MS-01 areas.
 - `sit-down/`: cockpit lifecycle orchestration; normal/draft sessions retain visible autosave, draft discard, and Stand Up, while `?session=<id>` opens completed history with explicit audited Save Corrections and abandonment warnings.
+- New sit-down and child-record IDs use `$lib/browser-identity`, the same secure UUID generator as account and audit persistence.
 - Sit-down projection warnings use one change-sensitive live region; explicit warning actions focus the existing control after DOM update and scroll it clear of the mobile dock. Selecting a paid mode preserves focus and warns immediately when its source is missing.
 - `archive/`: newest-first saved-session summaries; `archive/session/?session=<id>` provides read-only replay, draft discard, and the explicit resume/edit handoff.
 - `whiteboard/`: latest stood-up account summary plus query-selected active/archived account history, Chart.js visualization, exact table, and Archive deep links.
